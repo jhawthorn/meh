@@ -2,21 +2,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <setjmp.h>
+#include <string.h>
 
 #include "jpeglib.h"
 
 #include "jpeg.h"
 
+struct error_mgr{
+	struct jpeg_error_mgr pub;
+	jmp_buf jmp_buffer;
+};
+
+static void error_exit(j_common_ptr cinfo){
+	printf("\nerror!\n");
+	exit(1);
+}
+
 unsigned char *loadjpeg(char *filename, int *width, int *height){
 	struct jpeg_decompress_struct cinfo;
-	struct jpeg_error_mgr jerr;
+	struct error_mgr jerr;
 
 	FILE *infile;
 	JSAMPARRAY buffer;
 	int row_stride;
 	int i = 0;
 	int j;
-	int x, y;
+	int y;
 	unsigned char *retbuf;
 
 	if((infile = fopen(filename, "rb")) == NULL){
@@ -24,14 +36,23 @@ unsigned char *loadjpeg(char *filename, int *width, int *height){
 		exit(1);
 	}
 
-	cinfo.err = jpeg_std_error(&jerr);
+	cinfo.err = jpeg_std_error(&jerr.pub);
+	jerr.pub.error_exit = error_exit;
+
 	jpeg_create_decompress(&cinfo);
 	jpeg_stdio_src(&cinfo, infile);
 	jpeg_read_header(&cinfo, TRUE);
+
+	/* parameters */
 	cinfo.do_fancy_upsampling = 0;
 	cinfo.do_block_smoothing = 0;
 	cinfo.quantize_colors = 0;
 	cinfo.dct_method = JDCT_IFAST;
+	
+	jpeg_calc_output_dimensions(&cinfo);
+	row_stride = cinfo.output_width * cinfo.output_components;
+	buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE, row_stride, 4);
+	
 	jpeg_start_decompress(&cinfo);
 	*width = cinfo.output_width;
 	*height = cinfo.output_height;
@@ -41,16 +62,11 @@ unsigned char *loadjpeg(char *filename, int *width, int *height){
 		fprintf(stderr, "TODO: greyscale images are not supported\n");
 		exit(1);
 	}
-	row_stride = cinfo.output_width * cinfo.output_components;
-	buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE, row_stride, 16);
 	for(y = 0; y < cinfo.output_height; ){
-		int n = jpeg_read_scanlines(&cinfo, buffer, 16);
+		int n = jpeg_read_scanlines(&cinfo, buffer, 4);
 		for(j = 0; j < n; j++){
-			for(x = 0; x < row_stride;){
-				retbuf[i++] = buffer[j][x++];
-				retbuf[i++] = buffer[j][x++];
-				retbuf[i++] = buffer[j][x++];
-			}
+			memcpy(&retbuf[i], buffer[j], row_stride);
+			i += row_stride;
 		}
 		y += n;
 	}
