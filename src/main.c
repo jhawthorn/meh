@@ -6,6 +6,8 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 
+#include <sys/time.h>
+
 #include "jpeg.h"
 #include "util.h"
 
@@ -111,7 +113,6 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 	return img;
 }		
 
-
 void init(){
 	display = XOpenDisplay (NULL);
 	assert(display);
@@ -127,7 +128,7 @@ void init(){
 
 void run(char *images[], int length){
 	int i = 0;
-	int bufwidth, bufheight;
+	int bufwidth = 0, bufheight = 0;
 	int width = 0, height = 0;
 	XImage *img = NULL;
 	unsigned char *buf = NULL;
@@ -135,63 +136,75 @@ void run(char *images[], int length){
 
 	for(;;){
 		XEvent event;
-		XNextEvent(display, &event);
-		switch(event.type){
-			case MapNotify:
-				printf("MapNotify\n");
-				break;
-			case ConfigureNotify:
-				printf("ConfigureNotify(%i, %i, %i, %i)\n", event.xconfigure.x, event.xconfigure.y, event.xconfigure.width, event.xconfigure.height);
-				if(width != event.xconfigure.width || height != event.xconfigure.height){
-					if(img)
-						free(img);
-					img = NULL;
-					width = event.xconfigure.width;
-					height = event.xconfigure.height;
-				}
-				break;
-			case Expose:
-				printf("Expose(%i)\n", event.xexpose.count);
-				redraw = 1;
-				break;
-			case KeyPress:
-				switch(XLookupKeysym(&event.xkey, 0)){
-					case XK_Escape:
-						exit(0);
-						break;
-					case XK_q:
-						exit(0);
-						break;
-					case XK_t:
-						i = (i + 1) % length;
+		while(XPending(display)){
+			XNextEvent(display, &event);
+			switch(event.type){
+				case MapNotify:
+					break;
+				case ConfigureNotify:
+					if(width != event.xconfigure.width || height != event.xconfigure.height){
 						if(img)
 							free(img);
-						if(buf)
-							free(buf);
 						img = NULL;
-						buf = NULL;
-						redraw = 1;
-						break;
-					case XK_n:
-						i = i ? i - 1 : length - 1;
-						if(img)
-							free(img);
-						if(buf)
-							free(buf);
-						img = NULL;
-						buf = NULL;
-						redraw = 1;
-						break;
-				}
-				break;
+						width = event.xconfigure.width;
+						height = event.xconfigure.height;
+					}
+					break;
+				case Expose:
+					redraw = 1;
+					break;
+				case KeyPress:
+					switch(XLookupKeysym(&event.xkey, 0)){
+						case XK_Escape:
+							exit(0);
+							break;
+						case XK_q:
+							exit(0);
+							break;
+						case XK_t:
+							i = (i + 1) % length;
+							if(img)
+								free(img);
+							if(buf)
+								free(buf);
+							img = NULL;
+							buf = NULL;
+							redraw = 1;
+							break;
+						case XK_n:
+							i = i ? i - 1 : length - 1;
+							if(img)
+								free(img);
+							if(buf)
+								free(buf);
+							img = NULL;
+							buf = NULL;
+							redraw = 1;
+							break;
+					}
+					break;
+			}
 		}
 		if(redraw){
-			if(!buf)
+			struct timeval tv0;
+			struct timeval tv1;
+			if(!buf){
+				printf("loading...");
+				gettimeofday(&tv0, NULL);
 				buf = loadjpeg(images[i], &bufwidth, &bufheight);
-			assert(buf);
-			if(!img)
+				assert(buf);
+				gettimeofday(&tv1, NULL);
+				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
+			}
+			if(!img){
+				printf("scaling & converting...");
+				gettimeofday(&tv0, NULL);
 				img = create_image_from_buffer(buf, width, height, bufwidth, bufheight);
-			assert(img);
+				assert(img);
+				gettimeofday(&tv1, NULL);
+				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
+			}
+			printf("Displaying\n");
 			XPutImage(display, window, gc, img, 0, 0, 0, 0, width, height);
 			XFlush(display);
 			redraw = 0;
