@@ -128,7 +128,10 @@ void init(){
 void run(char *images[], int length){
 	int i = 0;
 	int bufwidth = 0, bufheight = 0;
+	int xoffset = 0, yoffset = 0;
+	int imagewidth = 0, imageheight = 0;
 	int width = 0, height = 0;
+	int fillw = 0, fillh = 0;
 	XImage *img = NULL;
 	unsigned char *buf = NULL;
 	int redraw = 0;
@@ -196,23 +199,35 @@ void run(char *images[], int length){
 				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
 			}
 			if(!img){
-				int w, h;
 				printf("scaling & converting...");
 				gettimeofday(&tv0, NULL);
 				if(width * bufheight > height * bufwidth){
-					w = bufwidth * height / bufheight;
-					h = height;
+					imagewidth = bufwidth * height / bufheight;
+					imageheight = height;
+					xoffset = (width - imagewidth) / 2;
+					yoffset = 0;
+					fillw = xoffset;
+					fillh = height;
+				}else if(width * bufheight < height * bufwidth){
+					imagewidth = width;
+					imageheight = bufheight * width / bufwidth;
+					xoffset = 0;
+					yoffset = (height - imageheight) / 2;
+					fillw = width;
+					fillh = yoffset;
 				}else{
-					w = width;
-					h = bufheight * width / bufwidth;
+					xoffset = 0;
+					yoffset = 0;
 				}
-				img = create_image_from_buffer(buf, w, h, bufwidth, bufheight);
+				img = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
 				assert(img);
 				gettimeofday(&tv1, NULL);
 				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
 			}
 			printf("Displaying\n");
-			XPutImage(display, window, gc, img, 0, 0, 0, 0, width, height);
+			XFillRectangle(display, window, gc, 0, 0, fillw, fillh);
+			XPutImage(display, window, gc, img, 0, 0, xoffset, yoffset, width, height);
+			XFillRectangle(display, window, gc, width - fillw, height - fillh, fillw, fillh);
 			XFlush(display);
 			redraw = 0;
 		}
