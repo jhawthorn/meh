@@ -59,7 +59,6 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 		size_t numNewBufBytes = (4 * (width * height));
 		u_int32_t *newBuf = malloc(numNewBufBytes);
 	
-		//for(outIndex = 0; outIndex < width * height; outIndex++){
 		for(y = 0; y < height; y++){
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
@@ -81,12 +80,12 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 			32, 0
 		);
 		
-	} else if (depth >= 15) {
+	}else if(depth >= 15){
 		exit(1);
 		size_t numNewBufBytes = (2 * (width * height));
 		u_int16_t *newBuf = malloc (numNewBufBytes);
 		
-		for (i = 0; i < numBufBytes;) {
+		for(i = 0; i < numBufBytes;){
 			unsigned int r, g, b;
 			r = (buf[i++] << rshift) & vis->red_mask;
 			g = (buf[i++] << gshift) & vis->green_mask;
@@ -95,14 +94,14 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 			newBuf[outIndex++] = r | g | b;
 		}		
 		
-		img = XCreateImage (display,
+		img = XCreateImage(display,
 			CopyFromParent, depth,
 			ZPixmap, 0,
 			(char *) newBuf,
 			width, height,
 			16, 0
 		);
-	} else {
+	}else{
 		fprintf (stderr, "This program does not support displays with a depth less than 15.");
 		exit(1);
 		return NULL;				
@@ -197,9 +196,17 @@ void run(char *images[], int length){
 				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
 			}
 			if(!img){
+				int w, h;
 				printf("scaling & converting...");
 				gettimeofday(&tv0, NULL);
-				img = create_image_from_buffer(buf, width, height, bufwidth, bufheight);
+				if(width * bufheight > height * bufwidth){
+					w = bufwidth * height / bufheight;
+					h = height;
+				}else{
+					w = width;
+					h = bufheight * width / bufwidth;
+				}
+				img = create_image_from_buffer(buf, w, h, bufwidth, bufheight);
 				assert(img);
 				gettimeofday(&tv1, NULL);
 				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
