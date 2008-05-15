@@ -151,6 +151,7 @@ void run(char *images[], int length){
 				}
 				break;
 			case Expose:
+				printf("Expose(%i)\n", event.xexpose.count);
 				redraw = 1;
 				break;
 			case KeyPress:
