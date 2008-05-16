@@ -43,10 +43,8 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 	XImage *img = NULL;
 	Visual *vis;
 	unsigned int rshift, gshift, bshift;
-	int outIndex = 0;	
 	int i;
 	int x,y;
-	int numBufBytes = (3 * bufwidth * bufheight);
 	
 	depth = DefaultDepth(display, screen);
 	vis = DefaultVisual(display, screen);
@@ -63,14 +61,13 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
 				i = (y * bufheight / height * bufwidth + x * bufwidth / width) * 3;
-				assert(i < numBufBytes);
 				r = (buf[i++] << rshift) & vis->red_mask;
 				g = (buf[i++] << gshift) & vis->green_mask;
 				b = (buf[i++] << bshift) & vis->blue_mask;
 				
 				newBuf[y * width + x] = r | g | b;
 			}
-		}		
+		}
 		
 		img = XCreateImage (display, 
 			CopyFromParent, depth, 
@@ -81,18 +78,20 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 		);
 		
 	}else if(depth >= 15){
-		exit(1);
 		size_t numNewBufBytes = (2 * (width * height));
 		u_int16_t *newBuf = malloc (numNewBufBytes);
 		
-		for(i = 0; i < numBufBytes;){
-			unsigned int r, g, b;
-			r = (buf[i++] << rshift) & vis->red_mask;
-			g = (buf[i++] << gshift) & vis->green_mask;
-			b = (buf[i++] << bshift) & vis->blue_mask;
-			
-			newBuf[outIndex++] = r | g | b;
-		}		
+		for(y = 0; y < height; y++){
+			for(x = 0; x < width; x++){
+				unsigned int r, g, b;
+				i = (y * bufheight / height * bufwidth + x * bufwidth / width) * 3;
+				r = (buf[i++] << rshift) & vis->red_mask;
+				g = (buf[i++] << gshift) & vis->green_mask;
+				b = (buf[i++] << bshift) & vis->blue_mask;
+				
+				newBuf[y * width + x] = r | g | b;
+			}
+		}
 		
 		img = XCreateImage(display,
 			CopyFromParent, depth,
