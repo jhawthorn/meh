@@ -19,22 +19,16 @@ static void error_exit(j_common_ptr cinfo){
 	exit(1);
 }
 
-unsigned char *loadjpeg(char *filename, int *width, int *height){
+unsigned char *loadjpeg(FILE *infile, int *width, int *height){
 	struct jpeg_decompress_struct cinfo;
 	struct error_mgr jerr;
 
-	FILE *infile;
 	JSAMPARRAY buffer;
 	int row_stride;
 	int i = 0;
 	int j;
 	int y;
 	unsigned char *retbuf;
-
-	if((infile = fopen(filename, "rb")) == NULL){
-		fprintf(stderr, "can't open %s\n", filename);
-		exit(1);
-	}
 
 	cinfo.err = jpeg_std_error(&jerr.pub);
 	jerr.pub.error_exit = error_exit;

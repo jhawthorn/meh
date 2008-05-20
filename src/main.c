@@ -109,7 +109,31 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 	XInitImage (img);
 
 	return img;
-}		
+}
+
+unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
+	unsigned char buf[4];
+	FILE *f;
+
+	if((f = fopen(filename, "rb")) == NULL){
+		fprintf(stderr, "Cannot open '%s'\n", filename);
+		return NULL;
+	}
+	fread(buf, 1, 4, f);
+	rewind(f);
+	if(buf[0] == 0xff && buf[1] == 0xd8){
+		return loadjpeg(f, bufwidth, bufheight);
+	}else if(!memcmp("\x89PNG", buf, 4)){
+		printf("IT'S A PNG!!!\n");
+		return NULL;
+	}else if(!memcmp("GIF", buf, 3)){
+		printf("IT'S A GIF!!!\n");
+		return NULL;
+	}else{
+		fprintf(stderr, "Unknown file type: '%s'\n", filename);
+		return NULL;
+	}
+}
 
 void init(){
 	display = XOpenDisplay (NULL);
@@ -187,19 +211,11 @@ void run(char *images[], int length){
 			}
 		}
 		if(redraw){
-			struct timeval tv0;
-			struct timeval tv1;
 			if(!buf){
-				printf("loading...");
-				gettimeofday(&tv0, NULL);
-				buf = loadjpeg(images[i], &bufwidth, &bufheight);
+				buf = loadbuf(images[i], &bufwidth, &bufheight);
 				assert(buf);
-				gettimeofday(&tv1, NULL);
-				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
 			}
 			if(!img){
-				printf("scaling & converting...");
-				gettimeofday(&tv0, NULL);
 				if(width * bufheight > height * bufwidth){
 					imagewidth = bufwidth * height / bufheight;
 					imageheight = height;
@@ -220,8 +236,6 @@ void run(char *images[], int length){
 				}
 				img = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
 				assert(img);
-				gettimeofday(&tv1, NULL);
-				printf(" %i milliseconds\n", (tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
 			}
 			printf("Displaying\n");
 			XFillRectangle(display, window, gc, 0, 0, fillw, fillh);

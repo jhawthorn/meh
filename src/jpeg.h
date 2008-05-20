@@ -1,3 +1,3 @@
 
-unsigned char *loadjpeg(char *filename, int *width, int *height);
+unsigned char *loadjpeg(FILE *, int *, int *);
 
