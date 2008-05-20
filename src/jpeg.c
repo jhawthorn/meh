@@ -66,7 +66,6 @@ unsigned char *loadjpeg(FILE *infile, int *width, int *height){
 	}
 	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
-	fclose(infile);
 	return retbuf;
 }
 

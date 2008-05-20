@@ -10,7 +10,7 @@
 #include <sys/time.h>
 
 #include "jpeg.h"
-#include "util.h"
+#include "gif.h"
 
 Display *display;
 int screen;
@@ -130,8 +130,7 @@ unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
 		printf("IT'S A PNG!!!\n");
 		buf = NULL;
 	}else if(!memcmp("GIF", head, 3)){
-		printf("IT'S A GIF!!!\n");
-		buf = NULL;
+		buf = loadgif(f, bufwidth, bufheight);
 	}else{
 		fprintf(stderr, "Unknown file type: '%s'\n", filename);
 		buf = NULL;
