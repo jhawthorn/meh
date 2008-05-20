@@ -112,27 +112,31 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 }
 
 unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
-	unsigned char buf[4];
 	FILE *f;
+	unsigned char head[4];
+	unsigned char *buf;
 
 	if((f = fopen(filename, "rb")) == NULL){
 		fprintf(stderr, "Cannot open '%s'\n", filename);
 		return NULL;
 	}
-	fread(buf, 1, 4, f);
+	memset(head, 0, 4);
+	fread(head, 1, 4, f);
 	rewind(f);
-	if(buf[0] == 0xff && buf[1] == 0xd8){
-		return loadjpeg(f, bufwidth, bufheight);
-	}else if(!memcmp("\x89PNG", buf, 4)){
+	if(head[0] == 0xff && head[1] == 0xd8){
+		buf = loadjpeg(f, bufwidth, bufheight);
+	}else if(!memcmp("\x89PNG", head, 4)){
 		printf("IT'S A PNG!!!\n");
-		return NULL;
-	}else if(!memcmp("GIF", buf, 3)){
+		buf = NULL;
+	}else if(!memcmp("GIF", head, 3)){
 		printf("IT'S A GIF!!!\n");
-		return NULL;
+		buf = NULL;
 	}else{
 		fprintf(stderr, "Unknown file type: '%s'\n", filename);
-		return NULL;
+		buf = NULL;
 	}
+	fclose(f);
+	return buf;
 }
 
 void init(){
