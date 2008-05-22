@@ -152,6 +152,7 @@ void init(){
 
 void run(char *images[], int length){
 	int i = 0;
+	int direction = 0;
 	int bufwidth = 0, bufheight = 0;
 	int xoffset = 0, yoffset = 0;
 	int imagewidth = 0, imageheight = 0;
@@ -189,17 +190,9 @@ void run(char *images[], int length){
 							exit(0);
 							break;
 						case XK_t:
-							i = (i + 1) % length;
-							if(img)
-								free(img);
-							if(buf)
-								free(buf);
-							img = NULL;
-							buf = NULL;
-							redraw = 1;
-							break;
 						case XK_n:
-							i = i ? i - 1 : length - 1;
+							direction = (XLookupKeysym(&event.xkey, 0) == XK_t) ? 1 : -1;
+							i += direction;
 							if(img)
 								free(img);
 							if(buf)
@@ -213,9 +206,15 @@ void run(char *images[], int length){
 			}
 		}
 		if(redraw){
-			if(!buf){
+			while(!buf){
+				if(i > length)
+					i -= length;
+				if(i < 0)
+					i += length;
 				buf = loadbuf(images[i], &bufwidth, &bufheight);
-				assert(buf);
+				if(!buf){
+					i += direction;
+				}
 			}
 			if(!img){
 				if(width * bufheight > height * bufwidth){
