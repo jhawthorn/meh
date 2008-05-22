@@ -137,6 +137,32 @@ unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
 	return buf;
 }
 
+struct imagenode{
+	struct imagenode *next, *prev;
+	char *filename;
+};
+
+struct imagenode *buildlist(int argc, char *argv[]){
+	struct imagenode *head = NULL, *tail = NULL, *tmp;
+	if(argc){
+		while(argc--){
+			tmp = malloc(sizeof(struct imagenode));
+			if(!head)
+				head = tail = tmp;
+			tmp->filename = *argv++;
+			tmp->prev = tail;
+			tail->next = tmp;
+			tail=tmp;
+		}
+		tail->next = head;
+		head->prev = tail;
+		return head;
+	}else{
+		fprintf(stderr, "No files to view\n");
+		exit(1);
+	}
+}
+
 void init(){
 	display = XOpenDisplay (NULL);
 	assert(display);
@@ -150,9 +176,8 @@ void init(){
 	XFlush(display);
 }
 
-void run(char *images[], int length){
-	int i = 0;
-	int direction = 0;
+void run(struct imagenode *image){
+	int direction = 1;
 	int bufwidth = 0, bufheight = 0;
 	int xoffset = 0, yoffset = 0;
 	int imagewidth = 0, imageheight = 0;
@@ -191,8 +216,13 @@ void run(char *images[], int length){
 							break;
 						case XK_t:
 						case XK_n:
-							direction = (XLookupKeysym(&event.xkey, 0) == XK_t) ? 1 : -1;
-							i += direction;
+							if(XLookupKeysym(&event.xkey, 0) == XK_t){
+								image = image->next;
+								direction = 1;
+							}else{
+								image = image->prev;
+								direction = -1;
+							}
 							if(img)
 								free(img);
 							if(buf)
@@ -207,13 +237,22 @@ void run(char *images[], int length){
 		}
 		if(redraw){
 			while(!buf){
-				if(i > length)
-					i -= length;
-				if(i < 0)
-					i += length;
-				buf = loadbuf(images[i], &bufwidth, &bufheight);
+				printf("loading %s\n", image->filename);
+				buf = loadbuf(image->filename, &bufwidth, &bufheight);
 				if(!buf){
-					i += direction;
+					if(image->next == image){
+						fprintf(stderr, "No valid images to view\n");
+						exit(1);
+					}
+					struct imagenode *tmp = image;
+					if(direction < 0){
+						image = image->prev;
+					}else{
+						image = image->next;
+					}
+					tmp->prev->next = tmp->next;
+					tmp->next->prev = tmp->prev;
+					free(tmp);
 				}
 			}
 			if(!img){
@@ -252,8 +291,9 @@ int main(int argc, char *argv[]){
 	if(argc < 2)
 		usage();
 	init();
+	struct imagenode *list = buildlist(argc - 1, &argv[1]);
 
-	run(&argv[1], argc - 1);
+	run(list);
 
 	return 0;
 }
