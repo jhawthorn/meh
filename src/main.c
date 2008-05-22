@@ -9,8 +9,7 @@
 
 #include <sys/time.h>
 
-#include "jpeg.h"
-#include "gif.h"
+#include "meh.h"
 
 Display *display;
 int screen;
@@ -127,8 +126,7 @@ unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
 	if(head[0] == 0xff && head[1] == 0xd8){
 		buf = loadjpeg(f, bufwidth, bufheight);
 	}else if(!memcmp("\x89PNG", head, 4)){
-		printf("IT'S A PNG!!!\n");
-		buf = NULL;
+		buf = loadpng(f, bufwidth, bufheight);
 	}else if(!memcmp("GIF", head, 3)){
 		buf = loadgif(f, bufwidth, bufheight);
 	}else{

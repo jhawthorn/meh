@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "gif.h"
+#include "meh.h"
 
 #define GIF87a 0
 #define GIF89a 1

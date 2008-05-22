@@ -7,7 +7,7 @@
 
 #include "jpeglib.h"
 
-#include "jpeg.h"
+#include "meh.h"
 
 struct error_mgr{
 	struct jpeg_error_mgr pub;
