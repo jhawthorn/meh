@@ -18,7 +18,7 @@ Window window;
 GC gc;
 
 void usage(){
-	printf("USAGE: meh [FILE1 [FILE2 [...]]]");
+	printf("USAGE: meh [FILE1 [FILE2 [...]]]\n");
 	exit(1);
 }
 
