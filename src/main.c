@@ -231,13 +231,15 @@ void run(struct imagenode *image){
 							buf = NULL;
 							redraw = 1;
 							break;
+						case XK_Return:
+							printf("%s\n", image->filename);
+							break;
 					}
 					break;
 			}
 		}
 		if(redraw){
 			while(!buf){
-				printf("loading %s\n", image->filename);
 				buf = loadbuf(image->filename, &bufwidth, &bufheight);
 				if(!buf){
 					if(image->next == image){
@@ -277,7 +279,6 @@ void run(struct imagenode *image){
 				img = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
 				assert(img);
 			}
-			printf("Displaying\n");
 			XFillRectangle(display, window, gc, 0, 0, fillw, fillh);
 			XPutImage(display, window, gc, img, 0, 0, xoffset, yoffset, width, height);
 			XFillRectangle(display, window, gc, width - fillw, height - fillh, fillw, fillh);
