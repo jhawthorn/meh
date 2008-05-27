@@ -43,7 +43,7 @@ unsigned char *loadpng(FILE *infile, int *bufwidth, int *bufheight){
 			png_set_strip_alpha(png_ptr);
 		if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
 			png_set_gray_to_rgb(png_ptr);
-		if(png_get_interlace_type == PNG_INTERLACE_ADAM7)
+		if(png_get_interlace_type(png_ptr, info_ptr) == PNG_INTERLACE_ADAM7)
 			numpasses = png_set_interlace_handling(png_ptr);
 		png_read_update_info(png_ptr, info_ptr);
 	}
