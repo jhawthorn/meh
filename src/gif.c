@@ -11,7 +11,7 @@ unsigned char *loadgif(FILE *infile, int *bufwidth, int *bufheight){
 	int version;
 	unsigned char *palette;
 	int pallen;
-	unsigned char *buf;
+	unsigned char *buf = NULL;
 	unsigned int bpp;
 
 	{
@@ -88,14 +88,85 @@ unsigned char *loadgif(FILE *infile, int *bufwidth, int *bufheight){
 					return NULL;
 				}
 
+				buf = malloc((*bufwidth) * (*bufheight) * 3);
+
 				{
-					int initcodesize, curcodesize;
+					unsigned int initcodesize, curcodesize;
+					unsigned int clearcode, endcode, newcode;
+					int bytesleft = 0;
+					int i;
+
+					/* Get code size */
 					initcodesize = fgetc(infile);
 					if(initcodesize < 1 || initcodesize > 9){
 						printf("bad code size %i\n", initcodesize);
 						return NULL;
 					}
 					curcodesize = initcodesize + 1;
+					clearcode = 1 << initcodesize;
+					endcode = clearcode + 1;
+					newcode = endcode + 1;
+
+					int count = 0;
+					for(;;){
+						int byte0 = -1, byte1 = -1, byteshift = 0;
+						if(1){
+							bytesleft = fgetc(infile);
+							printf("%i\n", bytesleft);
+							if(bytesleft < 0){
+								printf("unexpected EOF (0)\n");
+								return NULL;
+							}else if(bytesleft == 0)
+								break;
+						}
+						printf("start %i, %i\n", count++, bytesleft);
+						for(;;){
+							int code;
+							/* get code */
+							
+							while(byte1 == -1){
+								if((byte1 = fgetc(infile)) == EOF){
+									printf("unexpected EOF (1)\n");
+									return NULL;
+								}
+								if(byte0 == -1){
+									byte0 = byte1;
+								}
+								bytesleft--;
+							}
+							if(bytesleft < 0){
+								break;
+							}
+							code = (byte0 | byte1 << 8) >> byteshift & ((1 << curcodesize) - 1);
+							byteshift += curcodesize;
+							while(byteshift >= 8){
+								byte0 = byte1;
+								byte1 = -1;
+								byteshift -= 8;
+							}
+
+							if(code == clearcode){
+								printf("clearcode\n");
+								curcodesize = initcodesize + 1;
+								newcode = endcode + 1;
+							}else if(code == endcode){
+								printf("endcode with %i bytes left\n", bytesleft);
+								break;
+							}else{
+								newcode++;
+							}
+
+							/* process code */
+							if(newcode == 1 << curcodesize){
+								curcodesize++;
+							}
+						}
+					}
+					
+					/*for(i = 0; i < (*bufwidth) * (*bufheight); i++){
+					}*/
+					printf("good end\n");
+					return buf;
 				}
 
 				break;
