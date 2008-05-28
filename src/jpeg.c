@@ -26,8 +26,7 @@ unsigned char *loadjpeg(FILE *infile, int *width, int *height){
 	JSAMPARRAY buffer;
 	int row_stride;
 	int i = 0;
-	int j;
-	int y;
+	int j, y, x;
 	unsigned char *retbuf;
 
 	cinfo.err = jpeg_std_error(&jerr.pub);
@@ -50,19 +49,29 @@ unsigned char *loadjpeg(FILE *infile, int *width, int *height){
 	jpeg_start_decompress(&cinfo);
 	*width = cinfo.output_width;
 	*height = cinfo.output_height;
-	retbuf = malloc(4 * cinfo.output_components * (cinfo.output_width * cinfo.output_height));
+	retbuf = malloc(3 * (cinfo.output_width * cinfo.output_height));
 
-	if(cinfo.output_components != 3){
-		fprintf(stderr, "TODO: greyscale images are not supported\n");
-		exit(1);
-	}
-	for(y = 0; y < cinfo.output_height; ){
-		int n = jpeg_read_scanlines(&cinfo, buffer, 4);
-		for(j = 0; j < n; j++){
-			memcpy(&retbuf[i], buffer[j], row_stride);
-			i += row_stride;
+	if(cinfo.output_components == 3){
+		for(y = 0; y < cinfo.output_height; ){
+			int n = jpeg_read_scanlines(&cinfo, buffer, 4);
+			for(j = 0; j < n; j++){
+				memcpy(&retbuf[i], buffer[j], row_stride);
+				i += row_stride;
+			}
+			y += n;
 		}
-		y += n;
+	}else if(cinfo.output_components == 1){
+		for(y = 0; y < cinfo.output_height; ){
+			int n = jpeg_read_scanlines(&cinfo, buffer, 4);
+			for(j = 0; j < n; j++){
+				for(x = 0; x < cinfo.output_width; x++){
+					retbuf[i++] = buffer[j][x];
+					retbuf[i++] = buffer[j][x];
+					retbuf[i++] = buffer[j][x];
+				}
+			}
+			y += n;
+		}
 	}
 	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
