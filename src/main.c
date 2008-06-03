@@ -27,8 +27,8 @@ static int popcount(unsigned long mask){
 #else
     int y;
 
-    y = (mask >> 1) &033333333333;
-    y = mask - y - ((y >>1) & 033333333333);
+    y = (mask >> 1) & 033333333333;
+    y = mask - y - ((y >> 1) & 033333333333);
     return (((y + (y >> 3)) & 030707070707) % 077);
 #endif
 }
@@ -193,6 +193,7 @@ void run(struct imagenode *image){
 			XNextEvent(display, &event);
 			switch(event.type){
 				case MapNotify:
+					printf("map\n");
 					break;
 				case ConfigureNotify:
 					if(width != event.xconfigure.width || height != event.xconfigure.height){
@@ -202,9 +203,11 @@ void run(struct imagenode *image){
 						width = event.xconfigure.width;
 						height = event.xconfigure.height;
 					}
+					printf("%i, %i\n", width, height);
 					break;
 				case Expose:
 					redraw = 1;
+					printf("expose\n");
 					break;
 				case KeyPress:
 					switch(XLookupKeysym(&event.xkey, 0)){

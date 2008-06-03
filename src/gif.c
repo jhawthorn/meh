@@ -2,10 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <assert.h>
+
 #include "meh.h"
 
 #define GIF87a 0
 #define GIF89a 1
+
+#define MAX_CODES 4096
 
 unsigned char *loadgif(FILE *infile, int *bufwidth, int *bufheight){
 	int version;
@@ -89,12 +93,13 @@ unsigned char *loadgif(FILE *infile, int *bufwidth, int *bufheight){
 				}
 
 				buf = malloc((*bufwidth) * (*bufheight) * 3);
+				memset(buf, 0, (*bufwidth) * (*bufheight) * 3);
 
 				{
 					unsigned int initcodesize, curcodesize;
 					unsigned int clearcode, endcode, newcode;
 					int bytesleft = 0;
-					int i;
+					int i = 0;
 
 					/* Get code size */
 					initcodesize = fgetc(infile);
@@ -108,36 +113,39 @@ unsigned char *loadgif(FILE *infile, int *bufwidth, int *bufheight){
 					newcode = endcode + 1;
 
 					int count = 0;
+					int byte0 = -1, byte1 = -1, byteshift = 0;
+					unsigned int suffix[MAX_CODES * 3];
+					unsigned int prefix[MAX_CODES];
+					int length[MAX_CODES];
+
+					goto clear;
 					for(;;){
-						int byte0 = -1, byte1 = -1, byteshift = 0;
-						if(1){
-							bytesleft = fgetc(infile);
-							printf("%i\n", bytesleft);
-							if(bytesleft < 0){
-								printf("unexpected EOF (0)\n");
-								return NULL;
-							}else if(bytesleft == 0)
-								break;
-						}
-						printf("start %i, %i\n", count++, bytesleft);
 						for(;;){
+							count++;
+							int a, b, c;
 							int code;
 							/* get code */
 							
 							while(byte1 == -1){
+								if(!bytesleft){
+									bytesleft = fgetc(infile);
+									if(bytesleft < 0){
+										printf("unexpected EOF (0)\n");
+										return NULL;
+									}else if(bytesleft == 0)
+										break;
+								}
 								if((byte1 = fgetc(infile)) == EOF){
 									printf("unexpected EOF (1)\n");
 									return NULL;
 								}
 								if(byte0 == -1){
 									byte0 = byte1;
+									byte1 = -1;
 								}
 								bytesleft--;
 							}
-							if(bytesleft < 0){
-								break;
-							}
-							code = (byte0 | byte1 << 8) >> byteshift & ((1 << curcodesize) - 1);
+							code = ((byte0 | (byte1 << 8)) >> byteshift) & ((1 << curcodesize) - 1);
 							byteshift += curcodesize;
 							while(byteshift >= 8){
 								byte0 = byte1;
@@ -146,19 +154,54 @@ unsigned char *loadgif(FILE *infile, int *bufwidth, int *bufheight){
 							}
 
 							if(code == clearcode){
-								printf("clearcode\n");
+clear:
+								printf("%i. clear\n", count);
 								curcodesize = initcodesize + 1;
-								newcode = endcode + 1;
-							}else if(code == endcode){
-								printf("endcode with %i bytes left\n", bytesleft);
-								break;
-							}else{
-								newcode++;
-							}
+								newcode = endcode; /* endcode is also used as a sentinel */
+								for(a = 0; a < clearcode; a++){
+									length[a] = 0;
+									prefix[a] = 0;
 
-							/* process code */
-							if(newcode == 1 << curcodesize){
-								curcodesize++;
+									suffix[a*3] = palette[a*3];
+									suffix[a*3+1] = palette[a*3+1];
+									suffix[a*3+2] = palette[a*3+2];
+								}
+								
+							}else if(code == endcode){
+								printf("%i. endcode\n", count);
+								return buf;
+							}else{
+								assert(newcode < MAX_CODES);
+								printf("newcode: %x\n", newcode);
+								if(code <= newcode){
+									printf("%i. dict\n", count);
+									prefix[newcode+1] = i;
+									length[newcode+1] = length[code] + 1;
+									for(a = prefix[code]; a < prefix[code] + length[code]; a++){
+										buf[i*3] = buf[a*3];
+										buf[i*3+1] = buf[a*3+1];
+										buf[i*3+2] = buf[a*3+2];
+										i++;
+									}
+									buf[i*3] = suffix[code*3];
+									buf[i*3+1] = suffix[code*3+1];
+									buf[i*3+2] = suffix[code*3+1];
+									i++;
+
+									suffix[newcode*3 + 3] = suffix[newcode*3] = buf[prefix[newcode+1] * 3];
+									suffix[newcode*3 + 4] = suffix[newcode*3 + 1] = buf[prefix[newcode+1] * 3 + 1];
+									suffix[newcode*3 + 5] = suffix[newcode*3 + 2] = buf[prefix[newcode+1] * 3 + 2];
+									printf("codes[%x] = {%x,%x,%x}\n", newcode, prefix[newcode], length[newcode], suffix[newcode]);
+								}else{
+									printf("code > newcode (%x > %x)\n", code, newcode);
+									return buf;
+									//exit(1);
+								}
+								
+								newcode++;
+								if(newcode == 1 << curcodesize){
+									curcodesize++;
+								}
 							}
 						}
 					}
