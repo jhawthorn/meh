@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <X11/keysym.h>
 
 #include <sys/time.h>
@@ -36,6 +37,14 @@ static int popcount(unsigned long mask){
 
 unsigned int getshift(unsigned int mask){
 	return popcount((mask - 1) & ~mask) & 31;
+}
+
+void setaspect(int w, int h){
+	XSizeHints *hints = XAllocSizeHints();
+	hints->flags = PAspect;
+	hints->min_aspect.x = hints->max_aspect.x = w;
+	hints->min_aspect.y = hints->max_aspect.y = h;
+	XSetWMNormalHints(display, window, hints);
 }
 
 XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int bufwidth, int bufheight) {
@@ -163,12 +172,14 @@ struct imagenode *buildlist(int argc, char *argv[]){
 	}
 }
 
+
 void init(){
 	display = XOpenDisplay (NULL);
 	assert(display);
 	screen = DefaultScreen(display);
 
 	window = XCreateWindow(display, DefaultRootWindow(display), 0, 0, 640, 480, 0, DefaultDepth(display, screen), InputOutput, CopyFromParent, 0, NULL);
+	setaspect(1, 1);
 	gc = XCreateGC(display, window, 0, NULL);
 
 	XMapRaised(display, window);
@@ -193,7 +204,6 @@ void run(struct imagenode *image){
 			XNextEvent(display, &event);
 			switch(event.type){
 				case MapNotify:
-					printf("map\n");
 					break;
 				case ConfigureNotify:
 					if(width != event.xconfigure.width || height != event.xconfigure.height){
@@ -203,11 +213,9 @@ void run(struct imagenode *image){
 						width = event.xconfigure.width;
 						height = event.xconfigure.height;
 					}
-					printf("%i, %i\n", width, height);
 					break;
 				case Expose:
 					redraw = 1;
-					printf("expose\n");
 					break;
 				case KeyPress:
 					switch(XLookupKeysym(&event.xkey, 0)){
@@ -259,6 +267,7 @@ void run(struct imagenode *image){
 					tmp->next->prev = tmp->prev;
 					free(tmp);
 				}
+				setaspect(bufwidth, bufheight);
 			}
 			if(!img){
 				if(width * bufheight > height * bufwidth){
