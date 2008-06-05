@@ -45,6 +45,7 @@ void setaspect(int w, int h){
 	hints->min_aspect.x = hints->max_aspect.x = w;
 	hints->min_aspect.y = hints->max_aspect.y = h;
 	XSetWMNormalHints(display, window, hints);
+	XFree(hints);
 }
 
 XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int bufwidth, int bufheight) {
@@ -85,7 +86,6 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 			width, height,
 			32, 0
 		);
-		
 	}else if(depth >= 15){
 		size_t numNewBufBytes = (2 * (width * height));
 		u_int16_t *newBuf = malloc (numNewBufBytes);
@@ -207,8 +207,10 @@ void run(struct imagenode *image){
 					break;
 				case ConfigureNotify:
 					if(width != event.xconfigure.width || height != event.xconfigure.height){
-						if(img)
-							free(img);
+						if(img){
+							free(img->data);
+							XFree(img);
+						}
 						img = NULL;
 						width = event.xconfigure.width;
 						height = event.xconfigure.height;
@@ -234,8 +236,10 @@ void run(struct imagenode *image){
 								image = image->prev;
 								direction = -1;
 							}
-							if(img)
-								free(img);
+							if(img){
+								free(img->data);
+								XFree(img);
+							}
 							if(buf)
 								free(buf);
 							img = NULL;
