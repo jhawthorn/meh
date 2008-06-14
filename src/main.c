@@ -206,6 +206,7 @@ void run(struct imagenode *image){
 				case MapNotify:
 					break;
 				case ConfigureNotify:
+					printf("ConfigureNotify\n");
 					if(width != event.xconfigure.width || height != event.xconfigure.height){
 						if(img){
 							free(img->data);
@@ -272,6 +273,7 @@ void run(struct imagenode *image){
 					free(tmp);
 				}
 				setaspect(bufwidth, bufheight);
+				printf("setaspect\n");
 			}
 			if(!img){
 				if(width * bufheight > height * bufwidth){
@@ -293,6 +295,7 @@ void run(struct imagenode *image){
 					yoffset = 0;
 				}
 				img = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
+				printf("img\n");
 				assert(img);
 			}
 			XFillRectangle(display, window, gc, 0, 0, fillw, fillh);

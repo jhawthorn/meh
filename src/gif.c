@@ -154,6 +154,11 @@ unsigned char *loadgif(FILE *infile, int *bufwidth, int *bufheight){
 							}
 
 							if(code == clearcode){
+								if(i){
+									buf[(i-1)*3] = 0xff;
+									buf[(i-1)*3+1] = 0;
+									buf[(i-1)*3+2] = 0;
+								}
 clear:
 								printf("%i. clear\n", count);
 								curcodesize = initcodesize + 1;
@@ -172,9 +177,7 @@ clear:
 								return buf;
 							}else{
 								assert(newcode < MAX_CODES);
-								printf("newcode: %x\n", newcode);
 								if(code <= newcode){
-									printf("%i. dict\n", count);
 									prefix[newcode+1] = i;
 									length[newcode+1] = length[code] + 1;
 									for(a = prefix[code]; a < prefix[code] + length[code]; a++){
@@ -191,7 +194,6 @@ clear:
 									suffix[newcode*3 + 3] = suffix[newcode*3] = buf[prefix[newcode+1] * 3];
 									suffix[newcode*3 + 4] = suffix[newcode*3 + 1] = buf[prefix[newcode+1] * 3 + 1];
 									suffix[newcode*3 + 5] = suffix[newcode*3 + 2] = buf[prefix[newcode+1] * 3 + 2];
-									printf("codes[%x] = {%x,%x,%x}\n", newcode, prefix[newcode], length[newcode], suffix[newcode]);
 								}else{
 									printf("code > newcode (%x > %x)\n", code, newcode);
 									return buf;
@@ -199,8 +201,15 @@ clear:
 								}
 								
 								newcode++;
-								if(newcode == 1 << curcodesize){
+								if(newcode >= 1 << curcodesize){
+									buf[(i-1)*3] = 0xff;
+									buf[(i-1)*3+1] = 0;
+									buf[(i-1)*3+2] = 0xff;
 									curcodesize++;
+									printf("curcodesize = %i\n", curcodesize);
+									if(curcodesize == 11){
+										curcodesize = 11;
+									}
 								}
 							}
 						}

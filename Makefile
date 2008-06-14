@@ -6,7 +6,7 @@ SRCFILES := $(wildcard src/*.c)
 OBJFILES := $(SRCFILES:%.c=%.o)
 DEPFILES := $(OBJFILES:%.o=%.d)
 CLEANFILES := $(CLEANFILES) $(DEPFILES) $(OBJFILES) meh
-CFLAGS := -O3 -Wall -g -ggdb
+CFLAGS := $(CFLAGS) -O3 -Wall -g -ggdb
 LIBS := -lX11 -ljpeg -lpng
 
 meh: $(OBJFILES)
