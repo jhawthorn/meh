@@ -77,13 +77,13 @@ XImage *ximage(struct image *img, int width, int height) {
 	bshift = getshift(vis->blue_mask);
 
 	if (depth >= 24) {
-		size_t numNewBufBytes = (4 * (width * height));
+		size_t numNewBufBytes = (4 * width * height);
 		u_int32_t *newBuf = malloc(numNewBufBytes);
 	
 		for(y = 0; y < height; y++){
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
-				i = ((y * img->height / height + x) * img->width / width) * 3;
+				i = (y * img->height / height * img->width + x * img->width / width) * 3;
 				r = (img->buf[i++] << rshift) & vis->red_mask;
 				g = (img->buf[i++] << gshift) & vis->green_mask;
 				b = (img->buf[i++] << bshift) & vis->blue_mask;
@@ -106,7 +106,7 @@ XImage *ximage(struct image *img, int width, int height) {
 		for(y = 0; y < height; y++){
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
-				i = ((y * img->height / height + x) * img->width / width) * 3;
+				i = (y * img->height / height * img->width + x * img->width / width) * 3;
 				r = (img->buf[i++] << rshift) & vis->red_mask;
 				g = (img->buf[i++] << gshift) & vis->green_mask;
 				b = (img->buf[i++] << bshift) & vis->blue_mask;
