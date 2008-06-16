@@ -214,6 +214,7 @@ void run(struct imagenode *image){
 						img = NULL;
 						width = event.xconfigure.width;
 						height = event.xconfigure.height;
+						redraw = 1;
 					}
 					break;
 				case Expose:
@@ -291,6 +292,10 @@ void run(struct imagenode *image){
 				}else{
 					xoffset = 0;
 					yoffset = 0;
+					fillw = 0;
+					fillh = 0;
+					imagewidth = width;
+					imageheight = height;
 				}
 				img = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
 				assert(img);
