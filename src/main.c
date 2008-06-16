@@ -200,7 +200,10 @@ void run(struct imagenode *image){
 
 	for(;;){
 		XEvent event;
-		while(XPending(display)){
+		for(;;){
+			if(redraw && !XPending(display)){
+				break;
+			}
 			XNextEvent(display, &event);
 			switch(event.type){
 				case MapNotify:
@@ -273,6 +276,7 @@ void run(struct imagenode *image){
 					free(tmp);
 				}
 				setaspect(bufwidth, bufheight);
+				continue;
 			}
 			if(!img){
 				if(width * bufheight > height * bufwidth){
