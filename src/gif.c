@@ -1,6 +1,9 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include <assert.h>
 
@@ -8,38 +11,64 @@
 
 #include "meh.h"
 
-
-unsigned char *loadgif(FILE *f, int *bufwidth, int *bufheight){
+struct gif_t{
+	struct image img;
+	FILE *f;
 	GifFileType *gif;
-	SavedImage *img;
-	GifColorType *colormap;
+};
 
-	unsigned char *buf;
+static struct image *gif_open(FILE *f){
+	struct gif_t *g;
+	GifFileType *gif;
+
+	lseek(fileno(f), 0L, SEEK_SET);
 	if(!(gif = DGifOpenFileHandle(fileno(f)))){
 		return NULL;
 	}
-	if(DGifSlurp(gif) == GIF_ERROR){
-		return NULL;
-	}
-	img = &gif->SavedImages[0];
-	*bufwidth = img->ImageDesc.Width;
-	*bufheight = img->ImageDesc.Height;
-	buf = malloc(img->ImageDesc.Width * img->ImageDesc.Height * 3);
+	g = malloc(sizeof(struct gif_t));
+	g->f = f;
+	g->gif = gif;
 
-	if(img->ImageDesc.ColorMap)
-		colormap = img->ImageDesc.ColorMap->Colors;
-	else if(gif->SColorMap)
-		colormap = gif->SColorMap->Colors;
-	else
-		return NULL;
+	g->img.width = gif->SWidth;
+	g->img.height = gif->SHeight;
 
-	int i, j = 0;
-	for(i = 0; i < img->ImageDesc.Width * img->ImageDesc.Height; i++){
-		unsigned char idx = img->RasterBits[i];
-		buf[j++] = colormap[idx].Red;
-		buf[j++] = colormap[idx].Green;
-		buf[j++] = colormap[idx].Blue;
-	}
-	return buf;
+	return (struct image *)g;
 }
+
+static int gif_read(struct image *img){
+	int i, j = 0;
+	struct gif_t *g = (struct gif_t *)img;
+	GifColorType *colormap;
+	SavedImage *s;
+
+	if(DGifSlurp(g->gif) == GIF_ERROR){
+		PrintGifError();
+		return 1;
+	}
+
+	s = &g->gif->SavedImages[0];
+
+	if(s->ImageDesc.ColorMap)
+		colormap = s->ImageDesc.ColorMap->Colors;
+	else if(g->gif->SColorMap)
+		colormap = g->gif->SColorMap->Colors;
+	else{
+		PrintGifError();
+		return 1;
+	}
+
+	for(i = 0; i < img->width * img->height; i++){
+		unsigned char idx = s->RasterBits[i];
+		img->buf[j++] = colormap[idx].Red;
+		img->buf[j++] = colormap[idx].Green;
+		img->buf[j++] = colormap[idx].Blue;
+	}
+
+	return 0;
+}
+
+struct imageformat giflib = {
+	gif_open,
+	gif_read
+};
 

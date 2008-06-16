@@ -99,7 +99,7 @@ static int jpeg_read(struct image *img){
 	return 0;
 }
 
-struct imageformat jpeg = {
+struct imageformat libjpeg = {
 	jpeg_open,
 	jpeg_read
 };

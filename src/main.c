@@ -13,9 +13,13 @@
 #include "meh.h"
 
 /* Supported Formats */
-extern struct imageformat jpeg;
+extern struct imageformat libjpeg;
+extern struct imageformat giflib;
+extern struct imageformat libpng;
 struct imageformat *formats[] = {
-	&jpeg,
+	&libjpeg,
+	&giflib,
+	&libpng,
 	NULL
 };
 
@@ -53,12 +57,13 @@ void setaspect(int w, int h){
 	hints->min_aspect.x = hints->max_aspect.x = w;
 	hints->min_aspect.y = hints->max_aspect.y = h;
 	XSetWMNormalHints(display, window, hints);
+	XFlush(display);
 	XFree(hints);
 }
 
-XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int bufwidth, int bufheight) {
+XImage *ximage(struct image *img, int width, int height) {
 	int depth;
-	XImage *img = NULL;
+	XImage *ximg = NULL;
 	Visual *vis;
 	unsigned int rshift, gshift, bshift;
 	int i;
@@ -78,16 +83,16 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 		for(y = 0; y < height; y++){
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
-				i = (y * bufheight / height * bufwidth + x * bufwidth / width) * 3;
-				r = (buf[i++] << rshift) & vis->red_mask;
-				g = (buf[i++] << gshift) & vis->green_mask;
-				b = (buf[i++] << bshift) & vis->blue_mask;
+				i = ((y * img->height / height + x) * img->width / width) * 3;
+				r = (img->buf[i++] << rshift) & vis->red_mask;
+				g = (img->buf[i++] << gshift) & vis->green_mask;
+				b = (img->buf[i++] << bshift) & vis->blue_mask;
 				
 				newBuf[y * width + x] = r | g | b;
 			}
 		}
 		
-		img = XCreateImage (display, 
+		ximg = XCreateImage (display, 
 			CopyFromParent, depth, 
 			ZPixmap, 0, 
 			(char *) newBuf,
@@ -95,22 +100,22 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 			32, 0
 		);
 	}else if(depth >= 15){
-		size_t numNewBufBytes = (2 * (width * height));
+		size_t numNewBufBytes = (2 * width * height);
 		u_int16_t *newBuf = malloc (numNewBufBytes);
 		
 		for(y = 0; y < height; y++){
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
-				i = (y * bufheight / height * bufwidth + x * bufwidth / width) * 3;
-				r = (buf[i++] << rshift) & vis->red_mask;
-				g = (buf[i++] << gshift) & vis->green_mask;
-				b = (buf[i++] << bshift) & vis->blue_mask;
+				i = ((y * img->height / height + x) * img->width / width) * 3;
+				r = (img->buf[i++] << rshift) & vis->red_mask;
+				g = (img->buf[i++] << gshift) & vis->green_mask;
+				b = (img->buf[i++] << bshift) & vis->blue_mask;
 				
 				newBuf[y * width + x] = r | g | b;
 			}
 		}
 		
-		img = XCreateImage(display,
+		ximg = XCreateImage(display,
 			CopyFromParent, depth,
 			ZPixmap, 0,
 			(char *) newBuf,
@@ -118,14 +123,14 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 			16, 0
 		);
 	}else{
-		fprintf (stderr, "This program does not support displays with a depth less than 15.");
+		fprintf(stderr, "This program does not support displays with a depth less than 15.\n");
 		exit(1);
 		return NULL;				
 	}
 
-	XInitImage (img);
+	XInitImage(ximg);
 
-	return img;
+	return ximg;
 }
 
 struct image *imgopen(const char *filename){
@@ -144,16 +149,6 @@ struct image *imgopen(const char *filename){
 	}
 	fprintf(stderr, "Unknown file type: '%s'\n", filename);
 	return NULL;
-}
-
-unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
-	struct image *img;
-	img = imgopen(filename);
-	img->buf = malloc(3 * img->width * img->height);
-	*bufwidth = img->width;
-	*bufheight = img->height;
-	img->fmt->read(img);
-	return img->buf;
 }
 
 struct imagenode{
@@ -199,22 +194,19 @@ void init(){
 
 void run(struct imagenode *image){
 	int direction = 1;
-	int bufwidth = 0, bufheight = 0;
 	int xoffset = 0, yoffset = 0;
 	int imagewidth = 0, imageheight = 0;
 	int width = 0, height = 0;
 	int fillw = 0, fillh = 0;
 	XImage *ximg = NULL;
 	struct image *img = NULL;
-	unsigned char *buf = NULL;
 	int redraw = 0;
 
 	for(;;){
 		XEvent event;
 		for(;;){
-			if(redraw && !XPending(display)){
+			if(redraw && !XPending(display))
 				break;
-			}
 			XNextEvent(display, &event);
 			switch(event.type){
 				case MapNotify:
@@ -229,6 +221,8 @@ void run(struct imagenode *image){
 						width = event.xconfigure.width;
 						height = event.xconfigure.height;
 						redraw = 1;
+						if(img)
+							setaspect(img->width, img->height); /* Some window managers need reminding */
 					}
 					break;
 				case Expose:
@@ -255,28 +249,29 @@ void run(struct imagenode *image){
 								free(ximg->data);
 								XFree(ximg);
 							}
-							if(buf)
-								free(buf);
+							if(img){
+								if(img->buf)
+									free(img->buf);
+								free(img);
+							}
 							ximg = NULL;
-							buf = NULL;
+							img = NULL;
 							redraw = 1;
 							break;
 						case XK_Return:
-							printf("%s\n", image->filename);
 							break;
 					}
 					break;
 			}
 		}
 		if(redraw){
-			while(!buf){
-				buf = loadbuf(image->filename, &bufwidth, &bufheight);
-				if(!buf){
+			if(!img){
+				while(!(img = imgopen(image->filename))){
+					struct imagenode *tmp = image;
 					if(image->next == image){
 						fprintf(stderr, "No valid images to view\n");
 						exit(1);
 					}
-					struct imagenode *tmp = image;
 					if(direction < 0){
 						image = image->prev;
 					}else{
@@ -286,20 +281,26 @@ void run(struct imagenode *image){
 					tmp->next->prev = tmp->prev;
 					free(tmp);
 				}
-				setaspect(bufwidth, bufheight);
-				continue;
+				img->buf = NULL;
+				setaspect(img->width, img->height);
+				continue; /* make sure setaspect can do its thing */
+			}
+			if(!img->buf){
+				img->buf = malloc(3 * img->width * img->height);
+				img->fmt->read(img);
+				continue; /* Allow for some events to be read, read is slow */
 			}
 			if(!ximg){
-				if(width * bufheight > height * bufwidth){
-					imagewidth = bufwidth * height / bufheight;
+				if(width * img->height > height * img->width){
+					imagewidth = img->width * height / img->height;
 					imageheight = height;
 					xoffset = (width - imagewidth) / 2;
 					yoffset = 0;
 					fillw = xoffset;
 					fillh = height;
-				}else if(width * bufheight < height * bufwidth){
+				}else if(width * img->height < height * img->width){
 					imagewidth = width;
-					imageheight = bufheight * width / bufwidth;
+					imageheight = img->height * width / img->width;
 					xoffset = 0;
 					yoffset = (height - imageheight) / 2;
 					fillw = width;
@@ -312,7 +313,7 @@ void run(struct imagenode *image){
 					imagewidth = width;
 					imageheight = height;
 				}
-				ximg = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
+				ximg = ximage(img, imagewidth, imageheight);
 				assert(ximg);
 			}
 			XFillRectangle(display, window, gc, 0, 0, fillw, fillh);
@@ -325,11 +326,13 @@ void run(struct imagenode *image){
 }
 
 int main(int argc, char *argv[]){
+	struct imagenode *list;
+
 	if(argc < 2)
 		usage();
 	init();
-	struct imagenode *list = buildlist(argc - 1, &argv[1]);
 
+	list = buildlist(argc - 1, &argv[1]);
 	run(list);
 
 	return 0;
