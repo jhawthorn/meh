@@ -15,67 +15,92 @@ struct error_mgr{
 };
 
 static void error_exit(j_common_ptr cinfo){
+	(void) cinfo;
 	printf("\nerror!\n");
 	exit(1);
 }
 
-unsigned char *loadjpeg(FILE *infile, int *width, int *height){
+struct jpeg_t{
+	struct image img;
+	FILE *f;
 	struct jpeg_decompress_struct cinfo;
 	struct error_mgr jerr;
+};
 
-	JSAMPARRAY buffer;
-	int row_stride;
-	int i = 0;
-	int j, y, x;
-	unsigned char *retbuf;
+static struct image *jpeg_open(FILE *f){
+	struct jpeg_t *j;
 
-	cinfo.err = jpeg_std_error(&jerr.pub);
-	jerr.pub.error_exit = error_exit;
+	rewind(f);
+	if(getc(f) != 0xff || getc(f) != 0xd8)
+		return NULL;
 
-	jpeg_create_decompress(&cinfo);
-	jpeg_stdio_src(&cinfo, infile);
-	jpeg_read_header(&cinfo, TRUE);
+	j = malloc(sizeof(struct jpeg_t));
+	j->f = f;
+	rewind(f);
+
+	j->cinfo.err = jpeg_std_error(&j->jerr.pub);
+	j->jerr.pub.error_exit = error_exit;
+
+	jpeg_create_decompress(&j->cinfo);
+	jpeg_stdio_src(&j->cinfo, f);
+	jpeg_read_header(&j->cinfo, TRUE);
 
 	/* parameters */
-	cinfo.do_fancy_upsampling = 0;
-	cinfo.do_block_smoothing = 0;
-	cinfo.quantize_colors = 0;
-	cinfo.dct_method = JDCT_IFAST;
-	
-	jpeg_calc_output_dimensions(&cinfo);
-	row_stride = cinfo.output_width * cinfo.output_components;
-	buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE, row_stride, 4);
-	
-	jpeg_start_decompress(&cinfo);
-	*width = cinfo.output_width;
-	*height = cinfo.output_height;
-	retbuf = malloc(3 * (cinfo.output_width * cinfo.output_height));
+	j->cinfo.do_fancy_upsampling = 0;
+	j->cinfo.do_block_smoothing = 0;
+	j->cinfo.quantize_colors = 0;
+	j->cinfo.dct_method = JDCT_IFAST;
 
-	if(cinfo.output_components == 3){
-		for(y = 0; y < cinfo.output_height; ){
-			int n = jpeg_read_scanlines(&cinfo, buffer, 4);
-			for(j = 0; j < n; j++){
-				memcpy(&retbuf[i], buffer[j], row_stride);
-				i += row_stride;
+	jpeg_calc_output_dimensions(&j->cinfo);
+
+	j->img.width = j->cinfo.output_width;
+	j->img.height = j->cinfo.output_height;
+
+	return (struct image *)j;
+}
+
+static int jpeg_read(struct image *img){
+	struct jpeg_t *j = (struct jpeg_t *)img;
+	JSAMPARRAY buffer;
+	int row_stride;
+	int a = 0, b;
+	unsigned int x, y;
+
+	row_stride = j->cinfo.output_width * j->cinfo.output_components;
+	buffer = (*j->cinfo.mem->alloc_sarray)((j_common_ptr)&j->cinfo, JPOOL_IMAGE, row_stride, 4);
+
+	jpeg_start_decompress(&j->cinfo);
+
+	if(j->cinfo.output_components == 3){
+		for(y = 0; y < j->cinfo.output_height; ){
+			int n = jpeg_read_scanlines(&j->cinfo, buffer, 4);
+			for(b = 0; b < n; b++){
+				memcpy(&img->buf[a], buffer[b], row_stride);
+				a += row_stride;
 			}
 			y += n;
 		}
-	}else if(cinfo.output_components == 1){
-		for(y = 0; y < cinfo.output_height; ){
-			int n = jpeg_read_scanlines(&cinfo, buffer, 4);
-			for(j = 0; j < n; j++){
-				for(x = 0; x < cinfo.output_width; x++){
-					retbuf[i++] = buffer[j][x];
-					retbuf[i++] = buffer[j][x];
-					retbuf[i++] = buffer[j][x];
+	}else if(j->cinfo.output_components == 1){
+		for(y = 0; y < j->cinfo.output_height; ){
+			int n = jpeg_read_scanlines(&j->cinfo, buffer, 4);
+			for(b = 0; b < n; b++){
+				for(x = 0; x < j->cinfo.output_width; x++){
+					img->buf[a++] = buffer[b][x];
+					img->buf[a++] = buffer[b][x];
+					img->buf[a++] = buffer[b][x];
 				}
 			}
 			y += n;
 		}
 	}
-	jpeg_finish_decompress(&cinfo);
-	jpeg_destroy_decompress(&cinfo);
-	return retbuf;
+	jpeg_finish_decompress(&j->cinfo);
+	jpeg_destroy_decompress(&j->cinfo);
+
+	return 0;
 }
 
+struct imageformat jpeg = {
+	jpeg_open,
+	jpeg_read
+};
 

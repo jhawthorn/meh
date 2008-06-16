@@ -12,6 +12,14 @@
 
 #include "meh.h"
 
+/* Supported Formats */
+extern struct imageformat jpeg;
+struct imageformat *formats[] = {
+	&jpeg,
+	NULL
+};
+
+/* Globals */
 Display *display;
 int screen;
 Window window;
@@ -120,30 +128,32 @@ XImage *create_image_from_buffer(unsigned char *buf, int width, int height, int 
 	return img;
 }
 
-unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
+struct image *imgopen(const char *filename){
+	struct image *img = NULL;
+	struct imageformat **fmt = formats;
 	FILE *f;
-	unsigned char head[4];
-	unsigned char *buf;
-
 	if((f = fopen(filename, "rb")) == NULL){
 		fprintf(stderr, "Cannot open '%s'\n", filename);
 		return NULL;
 	}
-	memset(head, 0, 4);
-	fread(head, 1, 4, f);
-	rewind(f);
-	if(head[0] == 0xff && head[1] == 0xd8){
-		buf = loadjpeg(f, bufwidth, bufheight);
-	}else if(!memcmp("\x89PNG", head, 4)){
-		buf = loadpng(f, bufwidth, bufheight);
-	}else if(!memcmp("GIF", head, 3)){
-		buf = loadgif(f, bufwidth, bufheight);
-	}else{
-		fprintf(stderr, "Unknown file type: '%s'\n", filename);
-		buf = NULL;
+	for(fmt = formats; *fmt; fmt++){
+		if((img = (*fmt)->open(f))){
+			img->fmt = *fmt;
+			return img;
+		}
 	}
-	fclose(f);
-	return buf;
+	fprintf(stderr, "Unknown file type: '%s'\n", filename);
+	return NULL;
+}
+
+unsigned char *loadbuf(const char *filename, int *bufwidth, int *bufheight){
+	struct image *img;
+	img = imgopen(filename);
+	img->buf = malloc(3 * img->width * img->height);
+	*bufwidth = img->width;
+	*bufheight = img->height;
+	img->fmt->read(img);
+	return img->buf;
 }
 
 struct imagenode{
@@ -194,7 +204,8 @@ void run(struct imagenode *image){
 	int imagewidth = 0, imageheight = 0;
 	int width = 0, height = 0;
 	int fillw = 0, fillh = 0;
-	XImage *img = NULL;
+	XImage *ximg = NULL;
+	struct image *img = NULL;
 	unsigned char *buf = NULL;
 	int redraw = 0;
 
@@ -210,11 +221,11 @@ void run(struct imagenode *image){
 					break;
 				case ConfigureNotify:
 					if(width != event.xconfigure.width || height != event.xconfigure.height){
-						if(img){
-							free(img->data);
-							XFree(img);
+						if(ximg){
+							free(ximg->data);
+							XFree(ximg);
 						}
-						img = NULL;
+						ximg = NULL;
 						width = event.xconfigure.width;
 						height = event.xconfigure.height;
 						redraw = 1;
@@ -240,13 +251,13 @@ void run(struct imagenode *image){
 								image = image->prev;
 								direction = -1;
 							}
-							if(img){
-								free(img->data);
-								XFree(img);
+							if(ximg){
+								free(ximg->data);
+								XFree(ximg);
 							}
 							if(buf)
 								free(buf);
-							img = NULL;
+							ximg = NULL;
 							buf = NULL;
 							redraw = 1;
 							break;
@@ -278,7 +289,7 @@ void run(struct imagenode *image){
 				setaspect(bufwidth, bufheight);
 				continue;
 			}
-			if(!img){
+			if(!ximg){
 				if(width * bufheight > height * bufwidth){
 					imagewidth = bufwidth * height / bufheight;
 					imageheight = height;
@@ -301,11 +312,11 @@ void run(struct imagenode *image){
 					imagewidth = width;
 					imageheight = height;
 				}
-				img = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
-				assert(img);
+				ximg = create_image_from_buffer(buf, imagewidth, imageheight, bufwidth, bufheight);
+				assert(ximg);
 			}
 			XFillRectangle(display, window, gc, 0, 0, fillw, fillh);
-			XPutImage(display, window, gc, img, 0, 0, xoffset, yoffset, width, height);
+			XPutImage(display, window, gc, ximg, 0, 0, xoffset, yoffset, width, height);
 			XFillRectangle(display, window, gc, width - fillw, height - fillh, fillw, fillh);
 			XFlush(display);
 			redraw = 0;
