@@ -69,6 +69,10 @@ struct image *png_open(FILE *f){
 
 int png_read(struct image *img){
 	struct png_t *p = (struct png_t *)img;
+	if(setjmp(png_jmpbuf(p->png_ptr))){
+		png_destroy_read_struct(&p->png_ptr, &p->info_ptr, &p->end_info);
+		return 1;
+	}
 	int y;
 	while(p->numpasses--){
 		for(y = 0; y < img->height; y++)

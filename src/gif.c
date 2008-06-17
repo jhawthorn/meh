@@ -64,6 +64,8 @@ static int gif_read(struct image *img){
 		img->buf[j++] = colormap[idx].Blue;
 	}
 
+	DGifCloseFile(g->gif);
+
 	return 0;
 }
 

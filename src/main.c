@@ -64,7 +64,7 @@ XImage *ximage(struct image *img, int width, int height) {
 	unsigned int rshift, gshift, bshift;
 	int i;
 	int x,y;
-	
+
 	depth = DefaultDepth(display, screen);
 	vis = DefaultVisual(display, screen);
 
@@ -73,21 +73,24 @@ XImage *ximage(struct image *img, int width, int height) {
 	bshift = getshift(vis->blue_mask);
 
 	if (depth >= 24) {
+		unsigned int dx;
 		size_t numNewBufBytes = (4 * width * height);
 		u_int32_t *newBuf = malloc(numNewBufBytes);
 	
+		dx = 1024 * img->width / width;
 		for(y = 0; y < height; y++){
+			i = (y * img->height / height * img->width) * 1024;
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
-				i = (y * img->height / height * img->width + x * img->width / width) * 3;
-				r = (img->buf[i++] << rshift) & vis->red_mask;
-				g = (img->buf[i++] << gshift) & vis->green_mask;
-				b = (img->buf[i++] << bshift) & vis->blue_mask;
+				r = (img->buf[(i >> 10)*3] << rshift) & vis->red_mask;
+				g = (img->buf[(i >> 10)*3+1] << gshift) & vis->green_mask;
+				b = (img->buf[(i >> 10)*3+2] << bshift) & vis->blue_mask;
 				
 				newBuf[y * width + x] = r | g | b;
+				i += dx;
 			}
 		}
-		
+
 		ximg = XCreateImage (display, 
 			CopyFromParent, depth, 
 			ZPixmap, 0, 
@@ -96,18 +99,21 @@ XImage *ximage(struct image *img, int width, int height) {
 			32, 0
 		);
 	}else if(depth >= 15){
+		unsigned int dx;
 		size_t numNewBufBytes = (2 * width * height);
 		u_int16_t *newBuf = malloc (numNewBufBytes);
-		
+
+		dx = 1024 * img->width / width;
 		for(y = 0; y < height; y++){
+			i = (y * img->height / height * img->width) * 1024;
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
-				i = (y * img->height / height * img->width + x * img->width / width) * 3;
 				r = (img->buf[i++] << rshift) & vis->red_mask;
 				g = (img->buf[i++] << gshift) & vis->green_mask;
 				b = (img->buf[i++] << bshift) & vis->blue_mask;
 				
 				newBuf[y * width + x] = r | g | b;
+				i += dx;
 			}
 		}
 		
@@ -283,7 +289,9 @@ void run(struct imagenode *image){
 			}
 			if(!img->buf){
 				img->buf = malloc(3 * img->width * img->height);
-				img->fmt->read(img);
+				if(img->fmt->read(img)){
+					fprintf(stderr, "read error!\n");
+				}
 				continue; /* Allow for some events to be read, read is slow */
 			}
 			if(!ximg){
