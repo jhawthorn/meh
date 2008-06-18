@@ -27,14 +27,16 @@ struct rgb_t{
 struct bmp_t{
 	struct image img;
 	unsigned long bitmapoffset;
+	int compression;
 	int bpp;
 	int ncolors;
 	struct rgb_t *colours;
+	unsigned int rowwidth;
 };
 
 struct image *bmp_open(FILE *f){
 	struct bmp_t *b;
-	unsigned long headerend;
+	unsigned long headersize;
 	
 	rewind(f);
 	if(getc(f) != 'B' || getc(f) != 'M')
@@ -46,35 +48,88 @@ struct image *bmp_open(FILE *f){
 	fseek(f, 10, SEEK_SET);
 	b->bitmapoffset = getlong(f);
 
-	fseek(f, 18, SEEK_SET);
-	b->img.width = getlong(f);
-	b->img.height = getlong(f);
-
 	fseek(f, 14, SEEK_SET);
-	headerend = 14 + getlong(f);
+	headersize = getlong(f);
 
-	fseek(f, 28, SEEK_SET);
-	b->bpp = getshort(f);
-
-	if(b->bpp == 24){
+	if(headersize == 12){ /* OS/2 v1 */
 		b->ncolors = 0;
+		fseek(f, 18, SEEK_SET);
+		b->img.width = getshort(f);
+		b->img.height = getshort(f);
+		b->compression = 0;
+	}else{
+		fseek(f, 18, SEEK_SET);
+		b->img.width = getlong(f);
+		b->img.height = getlong(f);
+
+		fseek(f, 28, SEEK_SET);
+		b->bpp = getshort(f);
+
+		fseek(f, 30, SEEK_SET);
+		b->compression = getlong(f);
+
+		fseek(f, 46, SEEK_SET);
+		b->ncolors = getlong(f);
+	}
+
+	if(!b->ncolors){
+		b->ncolors = 1 << b->bpp;
+	}
+
+	if(b->compression){
+		fprintf(stderr, "unsupported compression method %i\n", b->compression);
+		return NULL;
+	}
+
+	if(b->bpp >= 16){
+		b->rowwidth = b->img.width * b->bpp;
 	}else{
 		int i;
-		fseek(f, 46, SEEK_SET);
-		if(!(b->ncolors = getlong(f))){
-			b->ncolors = 1 << b->bpp;
-		}
-		
 		b->colours = malloc(b->ncolors * sizeof(struct rgb_t));
-		fseek(f, headerend, SEEK_SET);
+		fseek(f, 14+headersize, SEEK_SET);
 		for(i = 0; i < b->ncolors; i++){
 			b->colours[i].b = getc(f);
 			b->colours[i].g = getc(f);
 			b->colours[i].r = getc(f);
+			if(headersize != 12)
+				getc(f);
 		}
+		b->rowwidth = (b->img.width * b->bpp + 7) / 8;
+	}
+	if(b->rowwidth & 3){
+		b->rowwidth += 4 - (b->rowwidth & 3);
 	}
 
 	return (struct image *)b;
+}
+
+static void readrow(struct image *img, unsigned char *row, unsigned char *buf){
+	struct bmp_t *b = (struct bmp_t *)img;
+	int x;
+	int i = 0;
+	if(b->bpp == 24 || b->bpp == 32){
+		for(x = 0; x < img->width * 3; x+=3){
+			buf[x + 2] = row[i++];
+			buf[x + 1] = row[i++];
+			buf[x + 0] = row[i++];
+			if(b->bpp == 32)
+				i++;
+		}
+	}else if(b->bpp <= 8){
+		int mask;
+		int pixelsperbit = 8 / b->bpp;
+		mask = ~((~0) << b->bpp);
+		for(x = 0; x < img->width; x++){
+			unsigned char c = ((row[i / pixelsperbit]) >> ((8 - ((i+1) % pixelsperbit) * b->bpp)) % 8) & mask;
+			*buf++ = b->colours[c].r;
+			*buf++ = b->colours[c].g;
+			*buf++ = b->colours[c].b;
+			i++;
+		}
+	}else{
+		fprintf(stderr, "bad bpp %i\n", b->bpp);
+		return;
+	}
 }
 
 int bmp_read(struct image *img){
@@ -82,23 +137,15 @@ int bmp_read(struct image *img){
 	FILE *f = img->f;
 
 	fseek(f, b->bitmapoffset, SEEK_SET);
-	if(b->bpp == 24){
-		int i, x, y;
-		int row = img->width * 3;
-		i = img->height * row;
-		for(y = img->height; y; y--){
-			i -= row;
-			for(x = 0; x < img->width * 3; x+=3){
-				img->buf[i + x + 2] = getc(f);
-				img->buf[i + x + 1] = getc(f);
-				img->buf[i + x + 0] = getc(f);
-			}
-			if(x & 3){
-				fseek(f, 4 - (x & 3), SEEK_CUR);
-			}
-		}
-	}else{
-		//TODO
+	int i, y;
+	int dy = img->width * 3;
+	i = img->height * dy;
+	unsigned char row[b->rowwidth];
+	for(y = img->height; y; y--){
+		i -= dy;
+		if(fread(row, 1, b->rowwidth, f) != b->rowwidth)
+			return 1;
+		readrow(img, row, &img->buf[i]);
 	}
 
 	return 0;

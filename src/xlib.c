@@ -111,7 +111,7 @@ void drawimage(struct image *img, int width, int height){
 	static struct image *lastimg = NULL;
 	static int lastwidth = 0, lastheight = 0;
 	static XImage *ximg = NULL;
-	if(img == lastimg && width == lastwidth && height == lastheight){
+	if(0 && img == lastimg && width == lastwidth && height == lastheight){
 	}else{
 		if(ximg)
 			XDestroyImage(ximg);
