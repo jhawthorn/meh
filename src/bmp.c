@@ -82,7 +82,7 @@ struct image *bmp_open(FILE *f){
 	}
 
 	if(b->bpp >= 16){
-		b->rowwidth = b->img.width * b->bpp;
+		b->rowwidth = b->img.width * b->bpp / 8;
 	}else{
 		int i;
 		b->colours = malloc(b->ncolors * sizeof(struct rgb_t));
