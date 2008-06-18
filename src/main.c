@@ -17,10 +17,12 @@ extern Display *display;
 extern struct imageformat libjpeg;
 extern struct imageformat giflib;
 extern struct imageformat libpng;
+extern struct imageformat gif;
 struct imageformat *formats[] = {
 	&libjpeg,
-	&giflib,
+	&gif,
 	&libpng,
+	&giflib,
 	NULL
 };
 
@@ -76,8 +78,21 @@ struct imagenode *buildlist(int argc, char *argv[]){
 	}
 }
 
-void run(struct imagenode *image){
-	int direction = 1;
+struct imagenode *images;
+
+const char *nextimage(){
+	images = images->next;
+	return images->filename;
+}
+
+const char *previmage(){
+	images = images->prev;
+	return images->filename;
+}
+
+void run(){
+	const char *(*direction)() = nextimage;
+	const char *filename = direction();
 	int width = 0, height = 0;
 	struct image *img = NULL;
 	int redraw = 0;
@@ -116,12 +131,13 @@ void run(struct imagenode *image){
 						case XK_t:
 						case XK_n:
 							if(XLookupKeysym(&event.xkey, 0) == XK_t){
-								image = image->next;
-								direction = 1;
+								direction = nextimage;
 							}else{
-								image = image->prev;
-								direction = -1;
+								direction = previmage;
 							}
+							filename = direction();
+							/* Pass through */
+						case XK_r:
 							if(img){
 								if(img->buf)
 									free(img->buf);
@@ -131,6 +147,8 @@ void run(struct imagenode *image){
 							redraw = 1;
 							break;
 						case XK_Return:
+							puts(filename);
+							fflush(stdout);
 							break;
 					}
 					break;
@@ -138,20 +156,13 @@ void run(struct imagenode *image){
 		}
 		if(redraw){
 			if(!img){
-				while(!(img = imgopen(image->filename))){
-					struct imagenode *tmp = image;
-					if(image->next == image){
+				const char *firstimg = filename;
+				while(!(img = imgopen(filename))){
+					filename = direction();
+					if(filename == firstimg){
 						fprintf(stderr, "No valid images to view\n");
 						exit(1);
 					}
-					if(direction < 0){
-						image = image->prev;
-					}else{
-						image = image->next;
-					}
-					tmp->prev->next = tmp->next;
-					tmp->next->prev = tmp->prev;
-					free(tmp);
 				}
 				img->buf = NULL;
 				setaspect(img->width, img->height);
@@ -171,14 +182,12 @@ void run(struct imagenode *image){
 }
 
 int main(int argc, char *argv[]){
-	struct imagenode *list;
-
 	if(argc < 2)
 		usage();
 	xinit();
 
-	list = buildlist(argc - 1, &argv[1]);
-	run(list);
+	images = buildlist(argc - 1, &argv[1]);
+	run();
 
 	return 0;
 }
