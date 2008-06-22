@@ -1,6 +1,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 #include <X11/Xlib.h>
@@ -28,13 +29,14 @@ static unsigned int getshift(unsigned int mask){
 #endif
 }
 
-XImage *ximage(struct image *img, int width, int height) {
+XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 	int depth;
 	XImage *ximg = NULL;
 	Visual *vis;
 	unsigned int rshift, gshift, bshift;
-	int i;
-	int x,y;
+	unsigned int i;
+	unsigned int x,y;
+	unsigned int j = 0;
 
 	depth = DefaultDepth(display, screen);
 	vis = DefaultVisual(display, screen);
@@ -45,7 +47,7 @@ XImage *ximage(struct image *img, int width, int height) {
 
 	if (depth >= 24) {
 		unsigned int dx;
-		size_t numNewBufBytes = (4 * width * height);
+		size_t numNewBufBytes = ((sizeof(u_int32_t)) * (width) * (height));
 		u_int32_t *newBuf = malloc(numNewBufBytes);
 	
 		dx = 1024 * img->width / width;
@@ -57,7 +59,7 @@ XImage *ximage(struct image *img, int width, int height) {
 				g = (img->buf[(i >> 10)*3+1] << gshift) & vis->green_mask;
 				b = (img->buf[(i >> 10)*3+2] << bshift) & vis->blue_mask;
 				
-				newBuf[y * width + x] = r | g | b;
+				newBuf[j++] = r | g | b;
 				i += dx;
 			}
 		}
@@ -107,7 +109,7 @@ XImage *ximage(struct image *img, int width, int height) {
 }
 
 
-void drawimage(struct image *img, int width, int height){
+void drawimage(struct image *img, unsigned int width, unsigned int height){
 	static struct image *lastimg = NULL;
 	static int lastwidth = 0, lastheight = 0;
 	static XImage *ximg = NULL;
@@ -151,7 +153,7 @@ void drawimage(struct image *img, int width, int height){
 }
 
 
-void setaspect(int w, int h){
+void setaspect(unsigned int w, unsigned int h){
 	XSizeHints *hints = XAllocSizeHints();
 	hints->flags = PAspect;
 	hints->min_aspect.x = hints->max_aspect.x = w;

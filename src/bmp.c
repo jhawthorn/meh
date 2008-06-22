@@ -112,8 +112,7 @@ void rgb16(unsigned char *buf, unsigned short c){
 
 static int readrow(struct image *img, unsigned char *row, unsigned char *buf){
 	struct bmp_t *b = (struct bmp_t *)img;
-	int x;
-	int i = 0;
+	unsigned int x, i = 0;
 	if(b->bpp == 24 || b->bpp == 32){
 		for(x = 0; x < img->width * 3; x+=3){
 			buf[x + 2] = row[i++];
@@ -149,21 +148,25 @@ static int readrow(struct image *img, unsigned char *row, unsigned char *buf){
 
 int bmp_read(struct image *img){
 	struct bmp_t *b = (struct bmp_t *)img;
+	unsigned int i, y;
+	unsigned int dy;
+	unsigned char *row;
 	FILE *f = img->f;
 
-	fseek(f, b->bitmapoffset, SEEK_SET);
-	int i, y;
-	int dy = img->width * 3;
+	row = malloc(b->rowwidth);
+	dy = img->width * 3;
 	i = img->height * dy;
-	unsigned char row[b->rowwidth];
+
+	fseek(f, b->bitmapoffset, SEEK_SET);
 	for(y = img->height; y; y--){
 		i -= dy;
-		if(fread(row, 1, b->rowwidth, f) != b->rowwidth)
+		if(fread(row, 1, b->rowwidth, f) != b->rowwidth || readrow(img, row, &img->buf[i])){
+			free(row);
 			return 1;
-		if(readrow(img, row, &img->buf[i]))
-			return 1;
+		}
 	}
 
+	free(row);
 	return 0;
 }
 

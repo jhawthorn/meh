@@ -10,15 +10,15 @@ struct imageformat{
 
 struct image{
 	unsigned char *buf;
-	int width, height;
+	unsigned int width, height;
 	FILE *f;
 	struct imageformat *fmt;
 };
 
 #include "X11/Xlib.h"
 
-XImage *ximage(struct image *img, int width, int height);
-void setaspect(int w, int h);
+XImage *ximage(struct image *img, unsigned int width, unsigned int height);
+void setaspect(unsigned int w, unsigned int h);
 void xinit();
-void drawimage(struct image *img, int width, int height);
+void drawimage(struct image *img, unsigned int width, unsigned int height);
 

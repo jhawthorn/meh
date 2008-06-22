@@ -49,7 +49,7 @@ static struct image *jpeg_open(FILE *f){
 	j->cinfo.do_fancy_upsampling = 0;
 	j->cinfo.do_block_smoothing = 0;
 	j->cinfo.quantize_colors = 0;
-	j->cinfo.dct_method = JDCT_IFAST;
+	j->cinfo.dct_method = JDCT_FASTEST;
 
 	jpeg_calc_output_dimensions(&j->cinfo);
 
@@ -62,7 +62,7 @@ static struct image *jpeg_open(FILE *f){
 static int jpeg_read(struct image *img){
 	struct jpeg_t *j = (struct jpeg_t *)img;
 	JSAMPARRAY buffer;
-	int row_stride;
+	unsigned int row_stride;
 	int a = 0, b;
 	unsigned int x, y;
 

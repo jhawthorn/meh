@@ -13,8 +13,23 @@ struct png_t{
 	int numpasses;
 };
 
+static unsigned char png_head[8] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
+
+static int ispng(FILE *f){
+	unsigned char buf[8];
+	if(fread(buf, 1, 8, f) != 8)
+		return 0;
+	return !memcmp(buf, png_head, 8);
+}
+
 struct image *png_open(FILE *f){
-	struct png_t *p = malloc(sizeof(struct png_t));
+	struct png_t *p;
+
+	rewind(f);
+	if(!ispng(f))
+		return NULL;
+
+	p = malloc(sizeof(struct png_t));
 	if((p->png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL){
 		free(p);
 		return NULL;
@@ -68,15 +83,16 @@ struct image *png_open(FILE *f){
 }
 
 int png_read(struct image *img){
+	unsigned int y;
 	struct png_t *p = (struct png_t *)img;
 	if(setjmp(png_jmpbuf(p->png_ptr))){
 		png_destroy_read_struct(&p->png_ptr, &p->info_ptr, &p->end_info);
 		return 1;
 	}
-	int y;
 	while(p->numpasses--){
-		for(y = 0; y < img->height; y++)
-			png_read_row(p->png_ptr, &img->buf[y * (img->width) * 3], NULL);
+		for(y = 0; y < img->height; y++){
+			png_read_row(p->png_ptr, &img->buf[y * img->width * 3], NULL);
+		}
 	}
 	png_destroy_read_struct(&p->png_ptr, &p->info_ptr, &p->end_info);
 	return 0;

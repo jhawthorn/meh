@@ -22,7 +22,7 @@ struct imageformat *formats[] = {
 	&libjpeg,
 	&gif,
 	&libpng,
-	&giflib,
+	&giflib, /* HACK! make gif last (uses read()) */
 	NULL
 };
 
@@ -34,21 +34,15 @@ void usage(){
 	exit(1);
 }
 
-struct image *imgopen(const char *filename){
+struct image *imgopen(FILE *f){
 	struct image *img = NULL;
 	struct imageformat **fmt = formats;
-	FILE *f;
-	if((f = fopen(filename, "rb")) == NULL){
-		fprintf(stderr, "Cannot open '%s'\n", filename);
-		return NULL;
-	}
 	for(fmt = formats; *fmt; fmt++){
 		if((img = (*fmt)->open(f))){
 			img->fmt = *fmt;
 			return img;
 		}
 	}
-	fprintf(stderr, "Unknown file type: '%s'\n", filename);
 	return NULL;
 }
 
@@ -96,6 +90,7 @@ void run(){
 	int width = 0, height = 0;
 	struct image *img = NULL;
 	int redraw = 0;
+	FILE *f = NULL;
 
 	for(;;){
 		XEvent event;
@@ -157,7 +152,21 @@ void run(){
 		if(redraw){
 			if(!img){
 				const char *firstimg = filename;
-				while(!(img = imgopen(filename))){
+				while(!img){
+					if(f){
+						fclose(f);
+						f = NULL;
+					}
+					if(!(f = fopen(filename, "rb")))
+						fprintf(stderr, "Cannot open '%s'\n", filename);
+
+					if(f){
+						if((img = imgopen(f)))
+							break;
+						else
+							fprintf(stderr, "Invalid format '%s'\n", filename);
+					}
+
 					filename = direction();
 					if(filename == firstimg){
 						fprintf(stderr, "No valid images to view\n");
@@ -172,6 +181,10 @@ void run(){
 				img->buf = malloc(3 * img->width * img->height);
 				if(img->fmt->read(img)){
 					fprintf(stderr, "read error!\n");
+				}
+				if(f){
+					fclose(f);
+					f = NULL;
 				}
 				continue; /* Allow for some events to be read, read is slow */
 			}

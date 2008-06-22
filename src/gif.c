@@ -17,12 +17,25 @@ struct gif_t{
 	GifFileType *gif;
 };
 
+static int isgif(FILE *f){
+	return (getc(f) == 'G' && getc(f) == 'I' && getc(f) == 'F');
+}
+
 static struct image *gif_open(FILE *f){
 	struct gif_t *g;
 	GifFileType *gif;
 
+	rewind(f);
+	if(!isgif(f))
+		return NULL;
+
+	/* HACK HACK HACK */
+	rewind(f);
 	lseek(fileno(f), 0L, SEEK_SET);
 	if(!(gif = DGifOpenFileHandle(fileno(f)))){
+		/* HACK AND HOPE */
+		rewind(f);
+		lseek(fileno(f), 0L, SEEK_SET);
 		return NULL;
 	}
 	g = malloc(sizeof(struct gif_t));
@@ -36,7 +49,7 @@ static struct image *gif_open(FILE *f){
 }
 
 static int gif_read(struct image *img){
-	int i, j = 0;
+	unsigned int i, j = 0;
 	struct gif_t *g = (struct gif_t *)img;
 	GifColorType *colormap;
 	SavedImage *s;
