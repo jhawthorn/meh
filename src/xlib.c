@@ -45,19 +45,23 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 	gshift = getshift(vis->green_mask);
 	bshift = getshift(vis->blue_mask);
 
+	struct timeval tv0, tv1;
+
 	if (depth >= 24) {
+		unsigned char *ibuf;
 		unsigned int dx;
 		size_t numNewBufBytes = ((sizeof(u_int32_t)) * (width) * (height));
 		u_int32_t *newBuf = malloc(numNewBufBytes);
 	
 		dx = 1024 * img->width / width;
 		for(y = 0; y < height; y++){
-			i = (y * img->height / height * img->width) * 1024;
+			i = 0;
+			ibuf = &img->buf[y * img->height / height * img->width * 3];
 			for(x = 0; x < width; x++){
 				unsigned int r, g, b;
-				r = (img->buf[(i >> 10)*3] << rshift) & vis->red_mask;
-				g = (img->buf[(i >> 10)*3+1] << gshift) & vis->green_mask;
-				b = (img->buf[(i >> 10)*3+2] << bshift) & vis->blue_mask;
+				r = (ibuf[(i >> 10)*3] << rshift) & vis->red_mask;
+				g = (ibuf[(i >> 10)*3+1] << gshift) & vis->green_mask;
+				b = (ibuf[(i >> 10)*3+2] << bshift) & vis->blue_mask;
 				
 				newBuf[j++] = r | g | b;
 				i += dx;
@@ -71,34 +75,9 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 			width, height,
 			32, 0
 		);
-	}else if(depth >= 15){
-		unsigned int dx;
-		size_t numNewBufBytes = (2 * width * height);
-		u_int16_t *newBuf = malloc (numNewBufBytes);
-
-		dx = 1024 * img->width / width;
-		for(y = 0; y < height; y++){
-			i = (y * img->height / height * img->width) * 1024;
-			for(x = 0; x < width; x++){
-				unsigned int r, g, b;
-				r = (img->buf[i++] << rshift) & vis->red_mask;
-				g = (img->buf[i++] << gshift) & vis->green_mask;
-				b = (img->buf[i++] << bshift) & vis->blue_mask;
-				
-				newBuf[y * width + x] = r | g | b;
-				i += dx;
-			}
-		}
-		
-		ximg = XCreateImage(display,
-			CopyFromParent, depth,
-			ZPixmap, 0,
-			(char *) newBuf,
-			width, height,
-			16, 0
-		);
 	}else{
-		fprintf(stderr, "This program does not support displays with a depth less than 15.\n");
+		/* TODO other depths */
+		fprintf(stderr, "This program does not support display depths less than 24.\n");
 		exit(1);
 		return NULL;				
 	}
