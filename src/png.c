@@ -96,14 +96,20 @@ int png_read(struct image *img){
 		row_pointers[y] = img->buf + y * img->width * 3;
 
     png_read_image(p->png_ptr, row_pointers);
-
-	png_destroy_read_struct(&p->png_ptr, &p->info_ptr, &p->end_info);
+	free(row_pointers);
 	return 0;
+}
+
+void png_close(struct image *img){
+	struct png_t *p = (struct png_t *)img;
+	png_destroy_read_struct(&p->png_ptr, &p->info_ptr, &p->end_info);
+	fclose(p->f);
 }
 
 struct imageformat libpng = {
 	png_open,
-	png_read
+	png_read,
+	png_close
 };
 
 

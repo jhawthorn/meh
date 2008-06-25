@@ -85,8 +85,7 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 	return ximg;
 }
 
-
-XImage *getimage(struct image *img, int width, int height){
+XImage *getimage(struct image *img, unsigned int width, unsigned int height){
 	if(width * img->height > height * img->width){
 		return ximage(img, img->width * height / img->height, height);
 	}else{

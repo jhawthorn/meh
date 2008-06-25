@@ -92,13 +92,19 @@ static int jpeg_read(struct image *img){
 		}
 	}
 	jpeg_finish_decompress(&j->cinfo);
-	jpeg_destroy_decompress(&j->cinfo);
 
 	return 0;
 }
 
+void jpeg_close(struct image *img){
+	struct jpeg_t *j = (struct jpeg_t *)img;
+	jpeg_destroy_decompress(&j->cinfo);
+	fclose(j->f);
+}
+
 struct imageformat libjpeg = {
 	jpeg_open,
-	jpeg_read
+	jpeg_read,
+	jpeg_close
 };
 

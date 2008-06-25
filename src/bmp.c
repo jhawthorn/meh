@@ -10,6 +10,7 @@ struct rgb_t{
 
 struct bmp_t{
 	struct image img;
+	FILE *f;
 	unsigned long bitmapoffset;
 	int compression;
 	int bpp;
@@ -43,7 +44,7 @@ struct image *bmp_open(FILE *f){
 		return NULL;
 
 	b = malloc(sizeof(struct bmp_t));
-	b->img.f = f;
+	b->f = f;
 
 	fseek(f, 10, SEEK_SET);
 	b->bitmapoffset = getlong(f);
@@ -151,7 +152,7 @@ int bmp_read(struct image *img){
 	unsigned int i, y;
 	unsigned int dy;
 	unsigned char *row;
-	FILE *f = img->f;
+	FILE *f = b->f;
 
 	row = malloc(b->rowwidth);
 	dy = img->width * 3;
@@ -170,8 +171,15 @@ int bmp_read(struct image *img){
 	return 0;
 }
 
+void bmp_close(struct image *img){
+	struct bmp_t *b = (struct bmp_t *)img;
+	free(b->colours);
+	fclose(b->f);
+}
+
 struct imageformat bmp = {
 	bmp_open,
-	bmp_read
+	bmp_read,
+	bmp_close
 };
 

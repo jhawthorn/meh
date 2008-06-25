@@ -69,7 +69,6 @@ void run(){
 	struct image *img = NULL;
 	XImage *ximg = NULL;
 	int redraw = 0;
-	FILE *f = NULL;
 
 	for(;;){
 		XEvent event;
@@ -78,8 +77,6 @@ void run(){
 				break;
 			XNextEvent(display, &event);
 			switch(event.type){
-				case MapNotify:
-					break;
 				case ConfigureNotify:
 					if(width != event.xconfigure.width || height != event.xconfigure.height){
 						width = event.xconfigure.width;
@@ -138,18 +135,14 @@ void run(){
 			if(!img){
 				const char *firstimg = filename;
 				while(!img){
-					if(f){
-						fclose(f);
-						f = NULL;
-					}
-					if(!(f = fopen(filename, "rb")))
-						fprintf(stderr, "Cannot open '%s'\n", filename);
-
-					if(f){
+					FILE *f;
+					if((f = fopen(filename, "rb"))){
 						if((img = imgopen(f)))
 							break;
 						else
 							fprintf(stderr, "Invalid format '%s'\n", filename);
+					}else{
+						fprintf(stderr, "Cannot open '%s'\n", filename);
 					}
 
 					filename = direction();
@@ -158,19 +151,14 @@ void run(){
 						exit(EXIT_FAILURE);
 					}
 				}
-				img->buf = NULL;
+
 				setaspect(img->width, img->height);
-				continue; /* make sure setaspect can do its thing */
-			}
-			if(!img->buf){
+
 				img->buf = malloc(3 * img->width * img->height);
 				if(img->fmt->read(img)){
 					fprintf(stderr, "read error!\n");
 				}
-				if(f){
-					fclose(f);
-					f = NULL;
-				}
+				img->fmt->close(img);
 				continue; /* Allow for some events to be read, read is slow */
 			}
 			ximg = getimage(img, width, height);

@@ -77,13 +77,18 @@ static int gif_read(struct image *img){
 		img->buf[j++] = colormap[idx].Blue;
 	}
 
-	DGifCloseFile(g->gif);
-
 	return 0;
+}
+
+void gif_close(struct image *img){
+	struct gif_t *g = (struct gif_t *)img;
+	DGifCloseFile(g->gif);
+	fclose(g->f);
 }
 
 struct imageformat giflib = {
 	gif_open,
-	gif_read
+	gif_read,
+	gif_close
 };
 
