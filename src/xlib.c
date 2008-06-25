@@ -45,8 +45,6 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 	gshift = getshift(vis->green_mask);
 	bshift = getshift(vis->blue_mask);
 
-	struct timeval tv0, tv1;
-
 	if (depth >= 24) {
 		unsigned char *ibuf;
 		unsigned int dx;
