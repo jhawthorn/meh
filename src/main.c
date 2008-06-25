@@ -31,7 +31,7 @@ void usage(){
 	printf("USAGE: meh [FILE1 [FILE2 [...]]]\n");
 	printf("       meh -list                 : treat stdin as list of files\n");
 	printf("       meh -ctl                  : display files as they are received on stdin\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 struct image *imgopen(FILE *f){
@@ -155,7 +155,7 @@ void run(){
 					filename = direction();
 					if(filename == firstimg){
 						fprintf(stderr, "No valid images to view\n");
-						exit(1);
+						exit(EXIT_FAILURE);
 					}
 				}
 				img->buf = NULL;
@@ -188,12 +188,12 @@ int main(int argc, char *argv[]){
 		if(argc != 2)
 			usage();
 		printf("not implemented\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}else if(!strcmp(argv[1], "-list")){
 		if(argc != 2)
 			usage();
 		printf("not implemented\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}else{
 		images = &argv[1];
 		imageslen = argc-1;
