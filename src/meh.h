@@ -20,5 +20,6 @@ struct image{
 XImage *ximage(struct image *img, unsigned int width, unsigned int height);
 void setaspect(unsigned int w, unsigned int h);
 void xinit();
-void drawimage(struct image *img, unsigned int width, unsigned int height);
+void drawimage(XImage *ximg, unsigned int width, unsigned int height);
+XImage *getimage(struct image *img, int width, int height);
 

@@ -86,53 +86,43 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 }
 
 
-void drawimage(struct image *img, unsigned int width, unsigned int height){
-	static struct image *lastimg = NULL;
-	static int lastwidth = 0, lastheight = 0;
-	static XImage *ximg = NULL;
-	if(0 && img == lastimg && width == lastwidth && height == lastheight){
+XImage *getimage(struct image *img, int width, int height){
+	if(width * img->height > height * img->width){
+		return ximage(img, img->width * height / img->height, height);
 	}else{
-		if(ximg)
-			XDestroyImage(ximg);
-		lastwidth = width;
-		lastheight = height;
-		lastimg = img;
-		if(width * img->height > height * img->width){
-			ximg = ximage(img, img->width * height / img->height, height);
-		}else{
-			ximg = ximage(img, width, img->height * width / img->width);
-		}
+		return ximage(img, width, img->height * width / img->width);
 	}
-	assert(ximg);
-	{
-		XRectangle rects[2];
-		int yoffset, xoffset;
-		xoffset = (width - ximg->width) / 2;
-		yoffset = (height - ximg->height) / 2;
-		if(xoffset || yoffset){
-			rects[0].x = rects[0].y = 0;
-			if(xoffset){
-				rects[0].width = rects[1].width = xoffset;
-				rects[0].height = rects[1].height = height;
-				rects[1].x = width-xoffset;
-				rects[1].y = 0;
-			}else if(yoffset){
-				rects[0].width = rects[1].width = width;
-				rects[0].height = rects[1].height = yoffset;
-				rects[1].x = 0;
-				rects[1].y = height - yoffset;
-			}
-			XFillRectangles(display, window, gc, rects, 2);
+}
+
+void drawimage(XImage *ximg, unsigned int width, unsigned int height){
+	XRectangle rects[2];
+	int yoffset, xoffset;
+	xoffset = (width - ximg->width) / 2;
+	yoffset = (height - ximg->height) / 2;
+	if(xoffset || yoffset){
+		rects[0].x = rects[0].y = 0;
+		if(xoffset){
+			rects[0].width = rects[1].width = xoffset;
+			rects[0].height = rects[1].height = height;
+			rects[1].x = width-xoffset;
+			rects[1].y = 0;
+		}else if(yoffset){
+			rects[0].width = rects[1].width = width;
+			rects[0].height = rects[1].height = yoffset;
+			rects[1].x = 0;
+			rects[1].y = height - yoffset;
 		}
-		XPutImage(display, window, gc, ximg, 0, 0, xoffset, yoffset, ximg->width, ximg->height);
-		XFlush(display);
+		XFillRectangles(display, window, gc, rects, 2);
 	}
+	XPutImage(display, window, gc, ximg, 0, 0, xoffset, yoffset, ximg->width, ximg->height);
+	XFlush(display);
 }
 
 
 void setaspect(unsigned int w, unsigned int h){
 	XSizeHints *hints = XAllocSizeHints();
-	hints->flags = PAspect;
+	//hints->flags = PAspect;
+	hints->flags = 0;
 	hints->min_aspect.x = hints->max_aspect.x = w;
 	hints->min_aspect.y = hints->max_aspect.y = h;
 	XSetWMNormalHints(display, window, hints);

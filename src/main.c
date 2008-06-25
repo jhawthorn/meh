@@ -89,6 +89,7 @@ void run(){
 	const char *filename = direction();
 	int width = 0, height = 0;
 	struct image *img = NULL;
+	XImage *ximg = NULL;
 	int redraw = 0;
 	FILE *f = NULL;
 
@@ -106,6 +107,9 @@ void run(){
 						width = event.xconfigure.width;
 						height = event.xconfigure.height;
 						redraw = 1;
+						if(ximg)
+							XDestroyImage(ximg);
+						ximg = NULL;
 
 						/* Some window managers need reminding */
 						if(img)
@@ -138,6 +142,9 @@ void run(){
 									free(img->buf);
 								free(img);
 							}
+							if(ximg)
+								XDestroyImage(ximg);
+							ximg = NULL;
 							img = NULL;
 							redraw = 1;
 							break;
@@ -188,7 +195,8 @@ void run(){
 				}
 				continue; /* Allow for some events to be read, read is slow */
 			}
-			drawimage(img, width, height);
+			ximg = getimage(img, width, height);
+			drawimage(ximg, width, height);
 			redraw = 0;
 		}
 	}
