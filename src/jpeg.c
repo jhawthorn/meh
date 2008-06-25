@@ -61,26 +61,24 @@ static struct image *jpeg_open(FILE *f){
 
 static int jpeg_read(struct image *img){
 	struct jpeg_t *j = (struct jpeg_t *)img;
-	JSAMPARRAY buffer;
 	unsigned int row_stride;
 	int a = 0, b;
 	unsigned int x, y;
 
 	row_stride = j->cinfo.output_width * j->cinfo.output_components;
-	buffer = (*j->cinfo.mem->alloc_sarray)((j_common_ptr)&j->cinfo, JPOOL_IMAGE, row_stride, 4);
 
 	jpeg_start_decompress(&j->cinfo);
 
+	unsigned char *buf = img->buf;
+
 	if(j->cinfo.output_components == 3){
-		for(y = 0; y < j->cinfo.output_height; ){
-			int n = jpeg_read_scanlines(&j->cinfo, buffer, 4);
-			for(b = 0; b < n; b++){
-				memcpy(&img->buf[a], buffer[b], row_stride);
-				a += row_stride;
-			}
-			y += n;
+		JSAMPARRAY buffer = &buf;
+		for(y = 0; y < j->cinfo.output_height; y++){
+			jpeg_read_scanlines(&j->cinfo, buffer, 1);
+			buf += row_stride;
 		}
 	}else if(j->cinfo.output_components == 1){
+		JSAMPARRAY buffer = (*j->cinfo.mem->alloc_sarray)((j_common_ptr)&j->cinfo, JPOOL_IMAGE, row_stride, 4);
 		for(y = 0; y < j->cinfo.output_height; ){
 			int n = jpeg_read_scanlines(&j->cinfo, buffer, 4);
 			for(b = 0; b < n; b++){
