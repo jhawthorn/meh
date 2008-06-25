@@ -183,11 +183,23 @@ void run(){
 int main(int argc, char *argv[]){
 	if(argc < 2)
 		usage();
-	xinit();
 
-	images = &argv[1];
-	imageslen = argc-1;
-	imageidx = -1;
+	if(!strcmp(argv[1], "-ctl")){
+		if(argc != 2)
+			usage();
+		printf("not implemented\n");
+		exit(1);
+	}else if(!strcmp(argv[1], "-list")){
+		if(argc != 2)
+			usage();
+		printf("not implemented\n");
+		exit(1);
+	}else{
+		images = &argv[1];
+		imageslen = argc-1;
+		imageidx = -1;
+	}
+	xinit();
 	run();
 
 	return 0;
