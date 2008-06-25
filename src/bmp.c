@@ -4,22 +4,6 @@
 
 #include "meh.h"
 
-unsigned short getshort(FILE *f){
-	unsigned short ret;
-	ret = getc(f);
-	ret = ret | (getc(f) << 8);
-	return ret;
-}
-
-unsigned long getlong(FILE *f){
-	unsigned short ret;
-	ret = getc(f);
-	ret = ret | (getc(f) << 8);
-	ret = ret | (getc(f) << 16);
-	ret = ret | (getc(f) << 24);
-	return ret;
-}
-
 struct rgb_t{
 	unsigned char r, g, b;
 };
@@ -33,6 +17,22 @@ struct bmp_t{
 	struct rgb_t *colours;
 	unsigned int rowwidth;
 };
+
+static unsigned short getshort(FILE *f){
+	unsigned short ret;
+	ret = getc(f);
+	ret = ret | (getc(f) << 8);
+	return ret;
+}
+
+static unsigned long getlong(FILE *f){
+	unsigned short ret;
+	ret = getc(f);
+	ret = ret | (getc(f) << 8);
+	ret = ret | (getc(f) << 16);
+	ret = ret | (getc(f) << 24);
+	return ret;
+}
 
 struct image *bmp_open(FILE *f){
 	struct bmp_t *b;
@@ -103,7 +103,7 @@ struct image *bmp_open(FILE *f){
 	return (struct image *)b;
 }
 
-void rgb16(unsigned char *buf, unsigned short c){
+static void rgb16(unsigned char *buf, unsigned short c){
 	int i;
 	for(i = 0; i < 3; i++){
 		*buf++ = ((c >> (i * 5)) & 0x1f) << 3;
@@ -170,7 +170,7 @@ int bmp_read(struct image *img){
 	return 0;
 }
 
-struct imageformat gif = {
+struct imageformat bmp = {
 	bmp_open,
 	bmp_read
 };

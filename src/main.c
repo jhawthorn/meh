@@ -17,10 +17,10 @@ extern Display *display;
 extern struct imageformat libjpeg;
 extern struct imageformat giflib;
 extern struct imageformat libpng;
-extern struct imageformat gif;
+extern struct imageformat bmp;
 struct imageformat *formats[] = {
 	&libjpeg,
-	&gif,
+	&bmp,
 	&libpng,
 	&giflib, /* HACK! make gif last (uses read()) */
 	NULL
