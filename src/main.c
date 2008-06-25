@@ -46,42 +46,20 @@ struct image *imgopen(FILE *f){
 	return NULL;
 }
 
-struct imagenode{
-	struct imagenode *next, *prev;
-	char *filename;
-};
-
-struct imagenode *buildlist(int argc, char *argv[]){
-	struct imagenode *head = NULL, *tail = NULL, *tmp;
-	if(argc){
-		while(argc--){
-			tmp = malloc(sizeof(struct imagenode));
-			if(!head)
-				head = tail = tmp;
-			tmp->filename = *argv++;
-			tmp->prev = tail;
-			tail->next = tmp;
-			tail=tmp;
-		}
-		tail->next = head;
-		head->prev = tail;
-		return head;
-	}else{
-		fprintf(stderr, "No files to view\n");
-		exit(1);
-	}
-}
-
-struct imagenode *images;
+int imageslen;
+int imageidx;
+char **images;
 
 const char *nextimage(){
-	images = images->next;
-	return images->filename;
+	if(++imageidx == imageslen)
+		imageidx = 0;
+	return images[imageidx];
 }
 
 const char *previmage(){
-	images = images->prev;
-	return images->filename;
+	if(--imageidx < 0)
+		imageidx = imageslen - 1;
+	return images[imageidx];
 }
 
 void run(){
@@ -207,7 +185,9 @@ int main(int argc, char *argv[]){
 		usage();
 	xinit();
 
-	images = buildlist(argc - 1, &argv[1]);
+	images = &argv[1];
+	imageslen = argc-1;
+	imageidx = -1;
 	run();
 
 	return 0;
