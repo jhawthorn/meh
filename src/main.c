@@ -161,7 +161,8 @@ void run(){
 				img->fmt->close(img);
 				continue; /* Allow for some events to be read, read is slow */
 			}
-			ximg = getimage(img, width, height);
+			if(!ximg)
+				ximg = getimage(img, width, height);
 			drawimage(ximg, width, height);
 			redraw = 0;
 		}
