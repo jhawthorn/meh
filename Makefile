@@ -14,8 +14,7 @@ meh: $(OBJFILES)
 -include $(DEPFILES)
 
 %.o: %.c Makefile
-	@echo "CC $<"
-	@$(CC) $(CFLAGS) -MMD -MP -MT "$*.d" -c -o $@ $<
+	$(CC) $(CFLAGS) -MMD -MP -MT "$*.d" -c -o $@ $<
 
 # Clean
 clean:
