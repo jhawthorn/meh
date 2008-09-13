@@ -54,8 +54,8 @@ struct image *png_open(FILE *f){
 
 	png_read_info(p->png_ptr, p->info_ptr);
 
-	p->img.width = png_get_image_width(p->png_ptr, p->info_ptr);
-	p->img.height = png_get_image_height(p->png_ptr, p->info_ptr);
+	p->img.bufwidth = png_get_image_width(p->png_ptr, p->info_ptr);
+	p->img.bufheight = png_get_image_height(p->png_ptr, p->info_ptr);
 
 	return (struct image *)p;
 }
@@ -91,9 +91,9 @@ int png_read(struct image *img){
 		png_read_update_info(p->png_ptr, p->info_ptr);
 	}
 
-    row_pointers = (png_bytepp)malloc(img->height * sizeof(png_bytep));
-    for(y = 0; y < img->height; y++)
-		row_pointers[y] = img->buf + y * img->width * 3;
+    row_pointers = (png_bytepp)malloc(img->bufheight * sizeof(png_bytep));
+    for(y = 0; y < img->bufheight; y++)
+		row_pointers[y] = img->buf + y * img->bufwidth * 3;
 
     png_read_image(p->png_ptr, row_pointers);
 	free(row_pointers);

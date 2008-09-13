@@ -55,13 +55,13 @@ struct image *bmp_open(FILE *f){
 	if(headersize == 12){ /* OS/2 v1 */
 		b->ncolors = 0;
 		fseek(f, 18, SEEK_SET);
-		b->img.width = getshort(f);
-		b->img.height = getshort(f);
+		b->img.bufwidth = getshort(f);
+		b->img.bufheight = getshort(f);
 		b->compression = 0;
 	}else{
 		fseek(f, 18, SEEK_SET);
-		b->img.width = getlong(f);
-		b->img.height = getlong(f);
+		b->img.bufwidth = getlong(f);
+		b->img.bufheight = getlong(f);
 
 		fseek(f, 28, SEEK_SET);
 		b->bpp = getshort(f);
@@ -83,7 +83,7 @@ struct image *bmp_open(FILE *f){
 	}
 
 	if(b->bpp >= 16){
-		b->rowwidth = b->img.width * b->bpp / 8;
+		b->rowwidth = b->img.bufwidth * b->bpp / 8;
 		b->colours = NULL;
 	}else{
 		int i;
@@ -96,7 +96,7 @@ struct image *bmp_open(FILE *f){
 			if(headersize != 12)
 				getc(f);
 		}
-		b->rowwidth = (b->img.width * b->bpp + 7) / 8;
+		b->rowwidth = (b->img.bufwidth * b->bpp + 7) / 8;
 	}
 	if(b->rowwidth & 3){
 		b->rowwidth += 4 - (b->rowwidth & 3);
@@ -116,7 +116,7 @@ static int readrow(struct image *img, unsigned char *row, unsigned char *buf){
 	struct bmp_t *b = (struct bmp_t *)img;
 	unsigned int x, i = 0;
 	if(b->bpp == 24 || b->bpp == 32){
-		for(x = 0; x < img->width * 3; x+=3){
+		for(x = 0; x < img->bufwidth * 3; x+=3){
 			buf[x + 2] = row[i++];
 			buf[x + 1] = row[i++];
 			buf[x + 0] = row[i++];
@@ -124,7 +124,7 @@ static int readrow(struct image *img, unsigned char *row, unsigned char *buf){
 				i++;
 		}
 	}else if(b->bpp == 16){
-		for(x = 0; x < img->width * 3; x+=3){
+		for(x = 0; x < img->bufwidth * 3; x+=3){
 			unsigned short c;
 			c = row[i++];
 			c |= row[i++] << 8;
@@ -134,7 +134,7 @@ static int readrow(struct image *img, unsigned char *row, unsigned char *buf){
 		int mask;
 		int pixelsperbit = 8 / b->bpp;
 		mask = ~((~0) << b->bpp);
-		for(x = 0; x < img->width; x++){
+		for(x = 0; x < img->bufwidth; x++){
 			unsigned char c = ((row[i / pixelsperbit]) >> ((8 - ((i+1) % pixelsperbit) * b->bpp)) % 8) & mask;
 			*buf++ = b->colours[c].r;
 			*buf++ = b->colours[c].g;
@@ -156,11 +156,11 @@ int bmp_read(struct image *img){
 	FILE *f = b->f;
 
 	row = malloc(b->rowwidth);
-	dy = img->width * 3;
-	i = img->height * dy;
+	dy = img->bufwidth * 3;
+	i = img->bufheight * dy;
 
 	fseek(f, b->bitmapoffset, SEEK_SET);
-	for(y = img->height; y; y--){
+	for(y = img->bufheight; y; y--){
 		i -= dy;
 		if(fread(row, 1, b->rowwidth, f) != b->rowwidth || readrow(img, row, &img->buf[i])){
 			free(row);

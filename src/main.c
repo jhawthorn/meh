@@ -41,38 +41,51 @@ void usage(){
 	exit(EXIT_FAILURE);
 }
 
-struct image *imgopen(FILE *f){
+struct image *newimage(FILE *f){
 	struct image *img = NULL;
 	struct imageformat **fmt = formats;
 	for(fmt = formats; *fmt; fmt++){
 		if((img = (*fmt)->open(f))){
 			img->fmt = *fmt;
+			img->ximg = NULL;
+			img->redraw = 1;
+			img->state = NONE;
 			return img;
 		}
 	}
 	return NULL;
 }
 
+struct image *imgopen(FILE *f){
+	return newimage(f);
+}
+
 static int imageslen;
 static int imageidx;
 static char **images;
 
-static char *filename = NULL;
+//static char *filename = NULL;
 static int width = 0, height = 0;
 static struct image *img = NULL;
-static XImage *ximg = NULL;
-static int redraw = 0;
+
+void freeimage(struct image *img){
+	if(img){
+		if(img->ximg)
+			freeXImg(img->ximg);
+		if(img->buf)
+			free(img->buf);
+		free(img);
+	}
+}
 
 void nextimage(){
 	if(++imageidx == imageslen)
 		imageidx = 0;
-	filename = images[imageidx];
 }
 
 void previmage(){
 	if(--imageidx < 0)
 		imageidx = imageslen - 1;
-	filename = images[imageidx];
 }
 
 static void (*direction)() = nextimage;
@@ -85,7 +98,7 @@ void handlekeypress(XEvent *event){
 			exit(0);
 			break;
 		case XK_Return:
-			puts(filename);
+		//	puts(filename);
 			fflush(stdout);
 			break;
 		case XK_t:
@@ -95,17 +108,12 @@ void handlekeypress(XEvent *event){
 			direction = key == XK_t ? nextimage : previmage;
 			direction();
 			/* Pass through */
-		case XK_r:
-			if(img){
-				if(img->buf)
-					free(img->buf);
-				free(img);
-			}
-			if(ximg)
-				XDestroyImage(ximg);
-			ximg = NULL;
+			freeimage(img);
 			img = NULL;
-			redraw = 1;
+			break;
+		case XK_r:
+			freeimage(img);
+			img = NULL;
 			break;
 	}
 }
@@ -116,18 +124,30 @@ void handleevent(XEvent *event){
 			if(width != event->xconfigure.width || height != event->xconfigure.height){
 				width = event->xconfigure.width;
 				height = event->xconfigure.height;
-				redraw = 1;
-				if(ximg)
-					XDestroyImage(ximg);
-				ximg = NULL;
+				if(img){
+					if(img->ximg)
+						XDestroyImage(img->ximg);
+					img->ximg = NULL;
+					img->redraw = 1;
+					if(img->state == LINEARDRAWN)
+						img->state = LINEAR;
+					else if(img->state == BILINEARDRAWN)
+						img->state = BILINEAR;
+				}
 
 				/* Some window managers need reminding */
 				if(img)
-					setaspect(img->width, img->height);
+					setaspect(img->bufwidth, img->bufheight);
 			}
 			break;
 		case Expose:
-			redraw = 1;
+			if(img){
+				img->redraw = 1;
+				if(img->state == LINEARDRAWN)
+					img->state = LINEAR;
+				else if(img->state == BILINEARDRAWN)
+					img->state = BILINEAR;
+			}
 			break;
 		case KeyPress:
 			handlekeypress(event);
@@ -135,50 +155,57 @@ void handleevent(XEvent *event){
 	}
 }
 
-void doredraw(){
-	if(!img){
-		if(!filename)
-			return;
-		const char *firstimg = filename;
-		while(!img){
-			FILE *f;
-			if((f = fopen(filename, "rb"))){
-				if((img = imgopen(f)))
-					break;
-				else
-					fprintf(stderr, "Invalid format '%s'\n", filename);
-			}else{
-				fprintf(stderr, "Cannot open '%s'\n", filename);
+struct image *imageopen2(){
+	char *filename = images[imageidx];
+	struct image *i;
+	FILE *f;
+	if((f = fopen(filename, "rb"))){
+		if((i = imgopen(f)))
+			return i;
+		else
+			fprintf(stderr, "Invalid format '%s'\n", filename);
+	}else{
+		fprintf(stderr, "Cannot open '%s'\n", filename);
+	}
+	return NULL;
+}
+
+int doredraw(struct image **i){
+	if(!*i){
+		int firstimg = imageidx;
+		while(!*i){
+			if((*i = imageopen2(images[imageidx]))){
+				break;
 			}
 			if(mode == MODE_CTL)
-				return;
+				return 0;
 			direction();
-			if(filename == firstimg){
+			if(imageidx == firstimg){
 				fprintf(stderr, "No valid images to view\n");
 				exit(EXIT_FAILURE);
 			}
 		}
 
-		setaspect(img->width, img->height);
+		setaspect((*i)->bufwidth, (*i)->bufheight);
 
-		img->buf = malloc(3 * img->width * img->height);
-		if(img->fmt->read(img)){
+		(*i)->buf = malloc(3 * (*i)->bufwidth * (*i)->bufheight);
+		if((*i)->fmt->read(*i)){
 			fprintf(stderr, "read error!\n");
 		}
-		img->fmt->close(img);
-
-		/* Allow for some events to be read, read is slow */
-		/*while(XPending(display)){
-			XEvent event;
-			XNextEvent(display, &event);
-			handleevent(&event);
-		}*/
+		(*i)->fmt->close(*i);
+		return 1;
+	}else if(width && height){
+		if(!(*i)->ximg){
+			(*i)->ximg = getimage(*i, width, height);
+			return 1;
+		}else if((*i)->redraw){ /* TODO */
+			drawimage((*i)->ximg, width, height);
+			(*i)->redraw = 0;
+			return 1;
+		}
 	}
-	if(!ximg)
-		ximg = getimage(img, width, height);
-	drawimage(ximg, width, height);
+	return 0;
 }
-
 
 void run(){
 	int xfd;
@@ -187,8 +214,6 @@ void run(){
 	struct timeval tv0 = {0, 0};
 	struct timeval *tv = &tv0;
 
-	char buf[512];
-	int bufidx = 0;
 	for(;;){
 		FD_ZERO(&fds);
 		FD_SET(xfd, &fds);
@@ -200,48 +225,26 @@ void run(){
 		}
 		if(FD_ISSET(0, &fds)){
 			assert(mode == MODE_CTL);
-			int n = read(0, buf, 512 - bufidx);
-			if(n == -1){
-				perror("read failed");
-			}else if(n == 0){
-				fprintf(stderr, "done reading\n");
-				exit(0);
-			}
-			char *p;
-			p = &buf[bufidx];
-			bufidx+=n;
-			for(; n > 0; p++, n--){
-				if(*p == '\n' || *p == '\0'){
-					n--;
-					*p = '\0';
-					strcpy(filename, buf);
-					for(;n && (*p == '\0' || *p == '\n'); p++, n--);
-					bufidx = n;
-					if(n)
-						memmove(buf, p, n);
-					if(img){
-						if(img->buf)
-							free(img->buf);
-						free(img);
-					}
-					if(ximg)
-						XDestroyImage(ximg);
-					ximg = NULL;
-					img = NULL;
-					redraw = 1;
-					tv = &tv0;
-				}
-			}
+			exit(1);
 		}
-		if(!XPending(display) && ret == 0 && redraw){
-			doredraw();
-			tv = NULL;
-		}
-		while(XPending(display)){
-			tv = &tv0;
-			XEvent event;
-			XNextEvent(display, &event);
-			handleevent(&event);
+		if(XPending(display)){
+			do{
+				tv = &tv0;
+				XEvent event;
+				XNextEvent(display, &event);
+				handleevent(&event);
+			}while(XPending(display));
+		}else if(ret == 0){
+			if(!img || img->state != BILINEARDRAWN){
+				doredraw(&img);
+			}
+			/*else if(!nextimg || !nextimg->ximg || !nextimg->redraw){
+				doredraw(&nextimg);
+			}else if(!previmg || !previmg->ximg || !previmg->redraw){
+				doredraw(&previmg);
+			}else{
+				tv = &tv0;
+			}*/
 		}
 	}
 }
@@ -254,8 +257,7 @@ int main(int argc, char *argv[]){
 		if(argc != 2)
 			usage();
 		mode = MODE_CTL;
-		filename = malloc(512);
-		filename[0] = '\0';
+		exit(EXIT_FAILURE);
 	}else if(!strcmp(argv[1], "-list")){
 		if(argc != 2)
 			usage();
@@ -267,7 +269,6 @@ int main(int argc, char *argv[]){
 		images = &argv[1];
 		imageslen = argc-1;
 		imageidx = 0;
-		filename = argv[1];
 	}
 	xinit();
 	run();

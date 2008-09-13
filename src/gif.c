@@ -42,8 +42,8 @@ static struct image *gif_open(FILE *f){
 	g->f = f;
 	g->gif = gif;
 
-	g->img.width = gif->SWidth;
-	g->img.height = gif->SHeight;
+	g->img.bufwidth = gif->SWidth;
+	g->img.bufheight = gif->SHeight;
 
 	return (struct image *)g;
 }
@@ -70,7 +70,7 @@ static int gif_read(struct image *img){
 		return 1;
 	}
 
-	for(i = 0; i < img->width * img->height; i++){
+	for(i = 0; i < img->bufwidth * img->bufheight; i++){
 		unsigned char idx = s->RasterBits[i];
 		img->buf[j++] = colormap[idx].Red;
 		img->buf[j++] = colormap[idx].Green;

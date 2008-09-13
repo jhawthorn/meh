@@ -53,8 +53,8 @@ static struct image *jpeg_open(FILE *f){
 
 	jpeg_calc_output_dimensions(&j->cinfo);
 
-	j->img.width = j->cinfo.output_width;
-	j->img.height = j->cinfo.output_height;
+	j->img.bufwidth = j->cinfo.output_width;
+	j->img.bufheight = j->cinfo.output_height;
 
 	return (struct image *)j;
 }

@@ -1,6 +1,8 @@
 
 #include <stdio.h>
 
+#include "X11/Xlib.h"
+
 struct image;
 
 struct imageformat{
@@ -9,13 +11,24 @@ struct imageformat{
 	void (*close)(struct image *);
 };
 
+typedef enum{
+	NONE,
+	IMG,
+	ALLOC,
+	LINEAR,
+	LINEARDRAWN,
+	BILINEAR,
+	BILINEARDRAWN,
+} drawstate;
+
 struct image{
 	unsigned char *buf;
-	unsigned int width, height;
+	unsigned int bufwidth, bufheight;
 	struct imageformat *fmt;
+	int redraw;
+	drawstate state;
+	XImage *ximg;
 };
-
-#include "X11/Xlib.h"
 
 XImage *ximage(struct image *img, unsigned int width, unsigned int height);
 void setaspect(unsigned int w, unsigned int h);
