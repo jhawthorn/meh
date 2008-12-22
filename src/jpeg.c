@@ -27,6 +27,12 @@ static void error_exit(j_common_ptr cinfo){
 	exit(1);
 }
 
+static void error_longjmp(j_common_ptr cinfo){
+    struct error_mgr *myerr = (struct error_mgr *)cinfo->err;
+    (*cinfo->err->output_message)(cinfo);
+    longjmp(myerr->jmp_buffer, 1);
+}
+
 static struct image *jpeg_open(FILE *f){
 	struct jpeg_t *j;
 
@@ -39,7 +45,10 @@ static struct image *jpeg_open(FILE *f){
 	rewind(f);
 
 	j->cinfo.err = jpeg_std_error(&j->jerr.pub);
-	j->jerr.pub.error_exit = error_exit;
+	j->jerr.pub.error_exit = error_longjmp;
+	if (setjmp(j->jerr.jmp_buffer)) {
+		return NULL;
+	}
 
 	jpeg_create_decompress(&j->cinfo);
 	jpeg_stdio_src(&j->cinfo, f);
@@ -56,6 +65,7 @@ static struct image *jpeg_open(FILE *f){
 	j->img.bufwidth = j->cinfo.output_width;
 	j->img.bufheight = j->cinfo.output_height;
 
+	j->jerr.pub.error_exit = error_exit;
 	return (struct image *)j;
 }
 
@@ -64,6 +74,11 @@ static int jpeg_read(struct image *img){
 	unsigned int row_stride;
 	int a = 0, b;
 	unsigned int x, y;
+
+	j->jerr.pub.error_exit = error_longjmp;
+	if(setjmp(j->jerr.jmp_buffer)){
+		return 1; /* ERROR */
+	}
 
 	row_stride = j->cinfo.output_width * j->cinfo.output_components;
 
