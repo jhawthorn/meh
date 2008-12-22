@@ -21,75 +21,8 @@ GC gc;
 
 int xshm = 0;
 
-#define GETVAL(x, c) (ibuf[(x) * 3 + (c)])
-#define GETLVAL(x, y, u, v, c) (( \
-			(GETVAL((x), (c)) * (1023^(u)) + GETVAL((x)+1, (c)) * (u)) * (1023^(v)) + \
-			(GETVAL((x)+img->bufwidth, (c)) * (1023^(u)) + GETVAL((x)+img->bufwidth+1, (c)) * (u)) * (v)) >> 20)
-
-void scale(struct image *img, XImage *ximg){
-	int x, y;
-	unsigned char * __restrict__ ibuf;
-	char* __restrict__ newBuf = ximg->data;
-	unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
-	unsigned int dx = (img->bufwidth << 10) / ximg->width;
-
-	struct timeval t0;
-	struct timeval t1;
-	gettimeofday(&t0, NULL);
-
-	for(y = 0; y < ximg->height; y++){
-		unsigned int bufy = (y << 10) * img->bufheight / ximg->height;
-		unsigned int v_ratio = (bufy & 1023);
-		unsigned int bufx = img->bufwidth / ximg->width;
-		unsigned char *ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];
-		for(x = ximg->width; x; x--){
-			unsigned int u_ratio = (bufx & 1023);
-
-			*newBuf++ = GETLVAL(bufx >> 10, bufy >> 10, u_ratio, v_ratio, 2);
-			*newBuf++ = GETLVAL(bufx >> 10, bufy >> 10, u_ratio, v_ratio, 1);
-			*newBuf++ = GETLVAL(bufx >> 10, bufy >> 10, u_ratio, v_ratio, 0);
-			newBuf++;
-			
-			bufx += dx;
-		}
-		newBuf += jdy;
-	}
-
-	gettimeofday(&t1, NULL);
-	printf("%i ms\n", ((t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec) / 1000);
-}
-
-
-void linearscale(struct image *img, XImage *ximg){
-	unsigned int i;
-	int x, y;
-	unsigned int dx;
-	unsigned char * __restrict__ ibuf;
-	char* __restrict__ newBuf = ximg->data;
-	unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
-	dx = (img->bufwidth << 10) / ximg->width;
-
-	struct timeval t0;
-	struct timeval t1;
-	gettimeofday(&t0, NULL);
-
-	for(y = 0; y < ximg->height; y++){
-		i = 0;
-		ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];
-		for(x = 0; x < ximg->width; x++){
-			*newBuf++ = (ibuf[(i >> 10)*3+2]);
-			*newBuf++ = (ibuf[(i >> 10)*3+1]);
-			*newBuf++ = (ibuf[(i >> 10)*3]);
-			newBuf++;
-			
-			i += dx;
-		}
-		newBuf += jdy;
-	}
-
-	gettimeofday(&t1, NULL);
-	printf("%i ms\n", ((t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec) / 1000);
-}
+void scale(struct image *img, XImage *ximg);
+void linearscale(struct image *img, XImage *ximg);
 
 XShmSegmentInfo *shminfo;
 XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
@@ -110,6 +43,8 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 				shminfo,
 				width, height
 			))){
+				fprintf(stderr, "XShm problems\n");
+				exit(1);
 			}
 			if((shminfo->shmid = shmget(IPC_PRIVATE, ximg->bytes_per_line * ximg->height, IPC_CREAT|0777)) == -1){
 				fprintf(stderr, "XShm problems\n");
@@ -133,7 +68,7 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 				width, height,
 				32, 0
 			);
-			ximg->data  = malloc(ximg->bytes_per_line * ximg->height + /*HACK*/(ximg->bytes_per_line+1));
+			ximg->data  = malloc(ximg->bytes_per_line * ximg->height);
 			XInitImage(ximg);
 		}
 		scale(img, ximg);

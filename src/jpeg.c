@@ -14,18 +14,18 @@ struct error_mgr{
 	jmp_buf jmp_buffer;
 };
 
-static void error_exit(j_common_ptr cinfo){
-	(void) cinfo;
-	printf("\nerror!\n");
-	exit(1);
-}
-
 struct jpeg_t{
 	struct image img;
 	FILE *f;
 	struct jpeg_decompress_struct cinfo;
 	struct error_mgr jerr;
 };
+
+static void error_exit(j_common_ptr cinfo){
+	(void) cinfo;
+	printf("\nerror!\n");
+	exit(1);
+}
 
 static struct image *jpeg_open(FILE *f){
 	struct jpeg_t *j;

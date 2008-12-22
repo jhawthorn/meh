@@ -98,14 +98,14 @@ void handlekeypress(XEvent *event){
 			exit(0);
 			break;
 		case XK_Return:
-		//	puts(filename);
+			puts(images[imageidx]);
 			fflush(stdout);
 			break;
-		case XK_t:
-		case XK_n:
+		case XK_j:
+		case XK_k:
 			if(mode == MODE_CTL)
 				return;
-			direction = key == XK_t ? nextimage : previmage;
+			direction = key == XK_j ? nextimage : previmage;
 			direction();
 			/* Pass through */
 			freeimage(img);
