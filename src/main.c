@@ -249,6 +249,24 @@ void run(){
 	}
 }
 
+void readlist(FILE *f){
+	int lsize = 1;
+	imageslen = 0;
+	images = NULL;
+	while(!feof(f)){
+		images = realloc(images, lsize * sizeof(char *));
+		while(imageslen < lsize && !feof(f)){
+			char *tmp = malloc(512);
+			if(fgets(tmp, 512, f)){
+				tmp[strlen(tmp)-1] = '\0';
+				images[imageslen] = tmp;
+				imageslen++;
+			}
+		}
+		lsize *= 2;
+	}
+}
+
 int main(int argc, char *argv[]){
 	if(argc < 2)
 		usage();
@@ -259,11 +277,16 @@ int main(int argc, char *argv[]){
 		mode = MODE_CTL;
 		exit(EXIT_FAILURE);
 	}else if(!strcmp(argv[1], "-list")){
-		if(argc != 2)
-			usage();
 		mode = MODE_LIST;
-		printf("not implemented\n");
-		exit(EXIT_FAILURE);
+		if(argc == 2){
+			readlist(stdin);
+		}else if(argc == 3){
+			FILE *f = fopen(argv[2], "r");
+			readlist(f);
+			fclose(f);
+		}else{
+			usage();
+		}
 	}else{
 		mode = MODE_NORM;
 		images = &argv[1];
