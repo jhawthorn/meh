@@ -1,4 +1,5 @@
 
+#define _GNU_SOURCE
 #include <unistd.h>
 
 #include <assert.h>
@@ -256,11 +257,12 @@ void readlist(FILE *f){
 	while(!feof(f)){
 		images = realloc(images, lsize * sizeof(char *));
 		while(imageslen < lsize && !feof(f)){
-			char *tmp = malloc(512);
-			if(fgets(tmp, 512, f)){
-				tmp[strlen(tmp)-1] = '\0';
-				images[imageslen] = tmp;
-				imageslen++;
+			char *line = NULL;
+			size_t slen = 0;
+			ssize_t read;
+			if((read = getline(&line, &slen, f)) > 0){
+				line[read-1] = '\0';
+				images[imageslen++] = line;
 			}
 		}
 		lsize *= 2;
