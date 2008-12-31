@@ -61,6 +61,9 @@ struct image *imgopen(FILE *f){
 	return newimage(f);
 }
 
+/* For MODE_CTL */
+int ctlfd;
+
 static int imageslen;
 static int imageidx;
 static char **images;
@@ -151,6 +154,8 @@ void handleevent(XEvent *event){
 			}
 			break;
 		case KeyPress:
+			if(mode == MODE_CTL)
+				break;
 			handlekeypress(event);
 			break;
 	}
@@ -173,17 +178,26 @@ struct image *imageopen2(){
 
 int doredraw(struct image **i){
 	if(!*i){
-		int firstimg = imageidx;
-		while(!*i){
-			if((*i = imageopen2(images[imageidx]))){
-				break;
-			}
-			if(mode == MODE_CTL)
+		if(mode == MODE_CTL){
+			if(images[0] == NULL)
 				return 0;
-			direction();
-			if(imageidx == firstimg){
-				fprintf(stderr, "No valid images to view\n");
-				exit(EXIT_FAILURE);
+			if(!(*i = imageopen2(images[0]))){
+				images[0] = NULL;
+				return;
+			}
+		}else{
+			int firstimg = imageidx;
+			while(!*i){
+				if((*i = imageopen2(images[imageidx]))){
+					break;
+				}
+				if(mode == MODE_CTL)
+					return 0;
+				direction();
+				if(imageidx == firstimg){
+					fprintf(stderr, "No valid images to view\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 		}
 
@@ -214,19 +228,31 @@ void run(){
 	fd_set fds;
 	struct timeval tv0 = {0, 0};
 	struct timeval *tv = &tv0;
+	int maxfd = xfd > ctlfd ? xfd : ctlfd;
 
 	for(;;){
 		FD_ZERO(&fds);
 		FD_SET(xfd, &fds);
 		if(mode == MODE_CTL)
-			FD_SET(0, &fds); /* STDIN */
-		int ret = select(xfd+1, &fds, NULL, NULL, tv);
+			FD_SET(ctlfd, &fds); /* STDIN */
+		int ret = select(maxfd+1, &fds, NULL, NULL, tv);
 		if(ret == -1){
 			perror("select failed\n");
 		}
-		if(FD_ISSET(0, &fds)){
+		if(FD_ISSET(ctlfd, &fds)){
 			assert(mode == MODE_CTL);
-			exit(1);
+			size_t slen = 0;
+			ssize_t read;
+			if(images[0]){
+				free(images[0]);
+			}
+			freeimage(img);
+			img = NULL;
+			images[0] = NULL;
+			if((read = getline(images, &slen, stdin)) == -1){
+				exit(EXIT_SUCCESS);
+			}
+			images[0][read-1] = '\0';
 		}
 		if(XPending(display)){
 			do{
@@ -235,7 +261,7 @@ void run(){
 				XNextEvent(display, &event);
 				handleevent(&event);
 			}while(XPending(display));
-		}else if(ret == 0){
+		}else if(ret == 0 && (mode != MODE_CTL || images[0] != NULL)){
 			if(!img || img->state != BILINEARDRAWN){
 				doredraw(&img);
 			}
@@ -277,7 +303,11 @@ int main(int argc, char *argv[]){
 		if(argc != 2)
 			usage();
 		mode = MODE_CTL;
-		exit(EXIT_FAILURE);
+		images = malloc(sizeof(char *));
+		images[0] = NULL;
+		imageslen = 1;
+		imageidx = 0;
+		ctlfd = 0;
 	}else if(!strcmp(argv[1], "-list")){
 		mode = MODE_LIST;
 		if(argc == 2){
