@@ -3,17 +3,17 @@
 #include <sys/time.h>
 #include "meh.h"
 
-#define TDEBUG 1
+#define TDEBUG 0
 
-#define GETVAL0(x, c) ((ibuf[bufxs[x] * 3 + (c)] * (ur) + ibuf[bufxs[x+1] * 3 + (c)] * (u)) * (vr) >> 20)
-#define GETVAL(x, c) (( \
+#define GETVAL0(c) ((ibuf[x0 + (c)] * (ur) + ibuf[x1 + (c)] * (u)) * (vr) >> 20)
+#define GETVAL(c) (( \
 			( \
-				ibuf[bufxs[x] * 3 + (c)] * (ur) + \
-				ibuf[bufxs[x+1] * 3 + (c)] * (u) \
+				ibuf[x0 + (c)] * (ur) + \
+				ibuf[x1 + (c)] * (u) \
 			) * (vr) + \
 			( \
-				(ibufn[bufxs[x] * 3 + (c)]) * (ur) + \
-				(ibufn[bufxs[x+1] * 3 + (c)]) * (u)\
+				(ibufn[x0 + (c)]) * (ur) + \
+				(ibufn[x1 + (c)]) * (u)\
 			) * (v)) >> 20)
 
 
@@ -21,6 +21,26 @@
 struct timeval t0;
 struct timeval t1;
 #endif
+
+#define XLOOP(F) \
+	for(x = 0; x < ximg->width*4;){ \
+		const unsigned int x0 = a[x++];\
+		const unsigned int x1 = a[x++];\
+		const unsigned int u  = a[x++];\
+		const unsigned int ur = a[x++];\
+		*newBuf++ = F(2);\
+		*newBuf++ = F(1);\
+		*newBuf++ = F(0);\
+		newBuf++;\
+	}
+
+#define YITER \
+	const unsigned int bufy = (y << 10) * img->bufheight / ximg->height;\
+	const unsigned int v = (bufy & 1023);\
+	const unsigned int vr = 1023^(bufy & 1023);\
+	ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];\
+	ibufn = ibuf + dy;
+
 
 void scale(struct image *img, XImage *ximg){
 	int x, y;
@@ -35,22 +55,21 @@ void scale(struct image *img, XImage *ximg){
 	gettimeofday(&t0, NULL);
 #endif
 
-	unsigned int bufxs[ximg->width * 2];
-	unsigned int us[ximg->width * 2];
+	unsigned int a[ximg->width * 4];
 	{
 		unsigned int dx = (img->bufwidth << 10) / ximg->width;
 		unsigned int bufx = img->bufwidth / ximg->width;
-		for(x = 0; x < ximg->width; x++){
+		for(x = 0; x < ximg->width * 4;){
 			if((bufx >> 10) >= img->bufwidth - 1){
-				bufxs[x*2] = img->bufwidth - 1;
-				bufxs[x*2+1] = img->bufwidth - 1;
-				us[x*2] = 0;
-				us[x*2+1] =1023 ^ (bufx & 1023);
+				a[x++] = (img->bufwidth - 1) * 3;
+				a[x++] = (img->bufwidth - 1) * 3;
+				a[x++] = 0;
+				a[x++] = 1023 ^ (bufx & 1023);
 			}else{
-				bufxs[x*2] = bufx >> 10;
-				bufxs[x*2+1] = bufxs[x * 2] + 1;
-				us[x*2] = (bufx & 1023);
-				us[x*2+1] = 1023 ^ us[x * 2];
+				a[x++] = (bufx >> 10) * 3;
+				a[x++] = ((bufx >> 10) + 1) * 3;
+				a[x++] = (bufx & 1023);
+				a[x++] = 1023 ^ (bufx & 1023);
 			}
 			bufx += dx;
 		}
@@ -58,36 +77,23 @@ void scale(struct image *img, XImage *ximg){
 	y = 0;
 	ibuf = img->buf;
 	ibufn = img->buf + dy;
-	for(; y < ximg->height; y++){
-		unsigned int bufy = (y << 10) * img->bufheight / ximg->height;
-		unsigned int v = (bufy & 1023);
-		unsigned int vr = 1023^(bufy & 1023);
-		ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];
-		ibufn = ibuf + dy;
+	for(;;){
+		YITER
+		if(ibufn + dy > bufend){
+			break;
+		}
+		XLOOP(GETVAL)
+		newBuf += jdy;
+		y++;
+	}
+	for(;;){
+		YITER
 		if(ibufn > bufend){
 			break;
-		}else if(ibufn + dy > bufend){
-			for(x = 0; x < ximg->width*2; x += 2){
-				unsigned int u = us[x];
-				unsigned int ur = us[x+1];
-
-				*newBuf++ = GETVAL0(x, 2);
-				*newBuf++ = GETVAL0(x, 1);
-				*newBuf++ = GETVAL0(x, 0);
-				newBuf++;
-			}
-		}else{
-			for(x = 0; x < ximg->width*2; x += 2){
-				unsigned int u = us[x];
-				unsigned int ur = us[x+1];
-
-				*newBuf++ = GETVAL(x, 2);
-				*newBuf++ = GETVAL(x, 1);
-				*newBuf++ = GETVAL(x, 0);
-				newBuf++;
-			}
 		}
+		XLOOP(GETVAL0)
 		newBuf += jdy;
+		y++;
 	}
 
 #if TDEBUG
