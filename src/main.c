@@ -183,7 +183,7 @@ int doredraw(struct image **i){
 				return 0;
 			if(!(*i = imageopen2(images[0]))){
 				images[0] = NULL;
-				return;
+				return 0;
 			}
 		}else{
 			int firstimg = imageidx;
@@ -255,23 +255,20 @@ void run(){
 			images[0][read-1] = '\0';
 		}
 		if(XPending(display)){
+			tv = &tv0;
+			XEvent event;
 			do{
-				tv = &tv0;
-				XEvent event;
 				XNextEvent(display, &event);
 				handleevent(&event);
 			}while(XPending(display));
-		}else if(ret == 0 && (mode != MODE_CTL || images[0] != NULL)){
-			if(!img || img->state != BILINEARDRAWN){
-				doredraw(&img);
+		}else if(ret == 0){
+			if(mode == MODE_CTL && images[0] == NULL){
+					tv = NULL;
+			}else if(!img || img->state != BILINEARDRAWN){
+				if(!doredraw(&img)){
+					tv = NULL;
+				}
 			}
-			/*else if(!nextimg || !nextimg->ximg || !nextimg->redraw){
-				doredraw(&nextimg);
-			}else if(!previmg || !previmg->ximg || !previmg->redraw){
-				doredraw(&previmg);
-			}else{
-				tv = &tv0;
-			}*/
 		}
 	}
 }
