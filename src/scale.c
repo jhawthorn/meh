@@ -37,7 +37,7 @@ struct timeval t1;
 #define YITER \
 	const unsigned int bufy = (y << 10) * img->bufheight / ximg->height;\
 	const unsigned int v = (bufy & 1023);\
-	const unsigned int vr = 1023^(bufy & 1023);\
+	const unsigned int vr = 1023^v;\
 	ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];\
 	ibufn = ibuf + dy;
 

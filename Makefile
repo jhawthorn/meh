@@ -9,7 +9,7 @@ CLEANFILES := $(CLEANFILES) $(DEPFILES) $(OBJFILES) meh
 LIBS := -lX11 -lXext -ljpeg -lpng -lgif
 
 meh: $(OBJFILES)
-	$(CC) -o $@ $(OBJFILES) $(LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJFILES) $(LIBS)
 
 -include $(DEPFILES)
 
