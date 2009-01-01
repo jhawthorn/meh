@@ -144,6 +144,7 @@ void setaspect(unsigned int w, unsigned int h){
 
 /* Alt-F4 silent. Keeps people happy */
 int xquit(Display *d){
+	(void)d;
 	exit(EXIT_SUCCESS);
 	return 0;
 }

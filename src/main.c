@@ -275,7 +275,7 @@ void run(){
 }
 
 void readlist(FILE *f){
-	int lsize = 1;
+	int lsize = 16;
 	imageslen = 0;
 	images = NULL;
 	while(!feof(f)){
@@ -293,6 +293,10 @@ void readlist(FILE *f){
 			}
 		}
 		lsize *= 2;
+	}
+	if(!imageslen){
+		fprintf(stderr, "No images to view\n");
+		exit(EXIT_FAILURE);
 	}
 }
 
@@ -334,4 +338,5 @@ int main(int argc, char *argv[]){
 
 	return 0;
 }
+
 
