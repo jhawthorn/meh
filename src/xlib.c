@@ -142,6 +142,12 @@ void setaspect(unsigned int w, unsigned int h){
 	XFree(hints);
 }
 
+/* Alt-F4 silent. Keeps people happy */
+int xquit(Display *d){
+	exit(EXIT_SUCCESS);
+	return 0;
+}
+
 void xinit(){
 	display = XOpenDisplay (NULL);
 	assert(display);
@@ -153,6 +159,8 @@ void xinit(){
 
 	XMapRaised(display, window);
 	XSelectInput(display, window, StructureNotifyMask | ExposureMask | KeyPressMask);
+	XFlush(display);
+	XSetIOErrorHandler(xquit);
 	XFlush(display);
 }
 
