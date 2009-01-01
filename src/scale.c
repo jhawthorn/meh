@@ -3,17 +3,17 @@
 #include <sys/time.h>
 #include "meh.h"
 
-#define TDEBUG 0
+#define TDEBUG 1
 
-#define GETVAL0(x, c) ((ibuf[bufxs[x] * 3 + (c)] * (ur) + ibuf[bufxns[x] * 3 + (c)] * (u)) * (vr) >> 20)
+#define GETVAL0(x, c) ((ibuf[bufxs[x] * 3 + (c)] * (ur) + ibuf[bufxs[x+1] * 3 + (c)] * (u)) * (vr) >> 20)
 #define GETVAL(x, c) (( \
 			( \
 				ibuf[bufxs[x] * 3 + (c)] * (ur) + \
-				ibuf[bufxns[x] * 3 + (c)] * (u) \
+				ibuf[bufxs[x+1] * 3 + (c)] * (u) \
 			) * (vr) + \
 			( \
 				(ibufn[bufxs[x] * 3 + (c)]) * (ur) + \
-				(ibufn[bufxns[x] * 3 + (c)]) * (u)\
+				(ibufn[bufxs[x+1] * 3 + (c)]) * (u)\
 			) * (v)) >> 20)
 
 
@@ -35,24 +35,22 @@ void scale(struct image *img, XImage *ximg){
 	gettimeofday(&t0, NULL);
 #endif
 
-	unsigned int bufxs[ximg->width];
-	unsigned int bufxns[ximg->width];
-	unsigned int us[ximg->width];
-	unsigned int urs[ximg->width];
+	unsigned int bufxs[ximg->width * 2];
+	unsigned int us[ximg->width * 2];
 	{
 		unsigned int dx = (img->bufwidth << 10) / ximg->width;
 		unsigned int bufx = img->bufwidth / ximg->width;
 		for(x = 0; x < ximg->width; x++){
 			if((bufx >> 10) >= img->bufwidth - 1){
-				bufxs[x] = img->bufwidth - 1;
-				bufxns[x] = 0;
-				urs[x] = 1023 ^ (bufx & 1023);
-				us[x] = 0;
+				bufxs[x*2] = img->bufwidth - 1;
+				bufxs[x*2+1] = img->bufwidth - 1;
+				us[x*2] = 0;
+				us[x*2+1] =1023 ^ (bufx & 1023);
 			}else{
-				bufxs[x] = bufx >> 10;
-				bufxns[x] = bufxs[x] + 1;
-				us[x] = (bufx & 1023);
-				urs[x] = 1023 ^ us[x];
+				bufxs[x*2] = bufx >> 10;
+				bufxs[x*2+1] = bufxs[x * 2] + 1;
+				us[x*2] = (bufx & 1023);
+				us[x*2+1] = 1023 ^ us[x * 2];
 			}
 			bufx += dx;
 		}
@@ -69,10 +67,9 @@ void scale(struct image *img, XImage *ximg){
 		if(ibufn > bufend){
 			break;
 		}else if(ibufn + dy > bufend){
-			for(x = 0; x < ximg->width; x++){
-				//unsigned int bufx = bufxs[x];
+			for(x = 0; x < ximg->width*2; x += 2){
 				unsigned int u = us[x];
-				unsigned int ur = urs[x];
+				unsigned int ur = us[x+1];
 
 				*newBuf++ = GETVAL0(x, 2);
 				*newBuf++ = GETVAL0(x, 1);
@@ -80,10 +77,9 @@ void scale(struct image *img, XImage *ximg){
 				newBuf++;
 			}
 		}else{
-			for(x = 0; x < ximg->width; x++){
-				//unsigned int bufx = bufxs[x];
+			for(x = 0; x < ximg->width*2; x += 2){
 				unsigned int u = us[x];
-				unsigned int ur = urs[x];
+				unsigned int ur = us[x+1];
 
 				*newBuf++ = GETVAL(x, 2);
 				*newBuf++ = GETVAL(x, 1);
