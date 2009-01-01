@@ -284,9 +284,12 @@ void readlist(FILE *f){
 			char *line = NULL;
 			size_t slen = 0;
 			ssize_t read;
-			if((read = getline(&line, &slen, f)) > 0){
+			read = getline(&line, &slen, f);
+			if(read > 1){
 				line[read-1] = '\0';
 				images[imageslen++] = line;
+			}else if(line){
+				free(line);
 			}
 		}
 		lsize *= 2;
