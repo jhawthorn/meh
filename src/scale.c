@@ -5,15 +5,15 @@
 
 #define TDEBUG 0
 
-#define GETVAL0(x, c) ((ibuf[(x) * 3 + (c)] * (ur) + ibuf[(x) * 3 + 3+(c)] * (u)) * (vr) >> 20)
+#define GETVAL0(x, c) ((ibuf[bufxs[x] * 3 + (c)] * (ur) + ibuf[bufxns[x] * 3 + (c)] * (u)) * (vr) >> 20)
 #define GETVAL(x, c) (( \
 			( \
-				ibuf[(x) * 3 + (c)] * (ur) + \
-				ibuf[(x) * 3 + 3+(c)] * (u) \
+				ibuf[bufxs[x] * 3 + (c)] * (ur) + \
+				ibuf[bufxns[x] * 3 + (c)] * (u) \
 			) * (vr) + \
 			( \
-				(ibufn[(x) * 3 + (c)]) * (ur) + \
-				(ibufn[(x) * 3 + 3+(c)]) * (u)\
+				(ibufn[bufxs[x] * 3 + (c)]) * (ur) + \
+				(ibufn[bufxns[x] * 3 + (c)]) * (u)\
 			) * (v)) >> 20)
 
 
@@ -24,25 +24,36 @@ struct timeval t1;
 
 void scale(struct image *img, XImage *ximg){
 	int x, y;
-	unsigned char * __restrict__ ibuf;
-	unsigned char * __restrict__ ibufn;
-	unsigned char * const bufend = &img->buf[img->bufwidth * img->bufheight * 3];
+	const unsigned char * __restrict__ ibuf;
+	const unsigned char * __restrict__ ibufn;
+	const unsigned char * const bufend = &img->buf[img->bufwidth * img->bufheight * 3];
 	char* __restrict__ newBuf = ximg->data;
-	unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
-	unsigned int dy = img->bufwidth * 3;
+	const unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
+	const unsigned int dy = img->bufwidth * 3;
 
 #if TDEBUG
 	gettimeofday(&t0, NULL);
 #endif
 
 	unsigned int bufxs[ximg->width];
+	unsigned int bufxns[ximg->width];
 	unsigned int us[ximg->width];
+	unsigned int urs[ximg->width];
 	{
 		unsigned int dx = (img->bufwidth << 10) / ximg->width;
 		unsigned int bufx = img->bufwidth / ximg->width;
 		for(x = 0; x < ximg->width; x++){
-			bufxs[x] = bufx >> 10;
-			us[x] = (bufx & 1023);
+			if((bufx >> 10) >= img->bufwidth - 1){
+				bufxs[x] = img->bufwidth - 1;
+				bufxns[x] = 0;
+				urs[x] = 1023 ^ (bufx & 1023);
+				us[x] = 0;
+			}else{
+				bufxs[x] = bufx >> 10;
+				bufxns[x] = bufxs[x] + 1;
+				us[x] = (bufx & 1023);
+				urs[x] = 1023 ^ us[x];
+			}
 			bufx += dx;
 		}
 	}
@@ -55,26 +66,28 @@ void scale(struct image *img, XImage *ximg){
 		unsigned int vr = 1023^(bufy & 1023);
 		ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];
 		ibufn = ibuf + dy;
-		if(ibufn >= bufend){
+		if(ibufn > bufend){
+			break;
+		}else if(ibufn + dy > bufend){
 			for(x = 0; x < ximg->width; x++){
-				unsigned int bufx = bufxs[x];
+				//unsigned int bufx = bufxs[x];
 				unsigned int u = us[x];
-				unsigned int ur = 1023^u;
+				unsigned int ur = urs[x];
 
-				*newBuf++ = GETVAL0(bufx, 2);
-				*newBuf++ = GETVAL0(bufx, 1);
-				*newBuf++ = GETVAL0(bufx, 0);
+				*newBuf++ = GETVAL0(x, 2);
+				*newBuf++ = GETVAL0(x, 1);
+				*newBuf++ = GETVAL0(x, 0);
 				newBuf++;
 			}
 		}else{
 			for(x = 0; x < ximg->width; x++){
-				unsigned int bufx = bufxs[x];
+				//unsigned int bufx = bufxs[x];
 				unsigned int u = us[x];
-				unsigned int ur = 1023^u;
+				unsigned int ur = urs[x];
 
-				*newBuf++ = GETVAL(bufx, 2);
-				*newBuf++ = GETVAL(bufx, 1);
-				*newBuf++ = GETVAL(bufx, 0);
+				*newBuf++ = GETVAL(x, 2);
+				*newBuf++ = GETVAL(x, 1);
+				*newBuf++ = GETVAL(x, 0);
 				newBuf++;
 			}
 		}
@@ -94,9 +107,9 @@ void linearscale(struct image *img, XImage *ximg){
 	unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
 	unsigned int dx = (img->bufwidth << 10) / ximg->width;
 
-	struct timeval t0;
-	struct timeval t1;
+#if TDEBUG
 	gettimeofday(&t0, NULL);
+#endif
 
 	for(y = 0; y < ximg->height; y++){
 		unsigned int bufx = img->bufwidth / ximg->width;
