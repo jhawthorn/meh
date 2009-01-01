@@ -3,15 +3,13 @@ SRCFILES := $(wildcard src/*.c)
 OBJFILES := $(SRCFILES:%.c=%.o)
 DEPFILES := $(OBJFILES:%.o=%.d)
 CLEANFILES := $(CLEANFILES) $(DEPFILES) $(OBJFILES) meh
+CFLAGS ?= -O2
 LIBS ?= -lX11 -lXext -ljpeg -lpng -lgif
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 
 # User configuration
 -include config.mk
-
-
-
 
 meh: $(OBJFILES)
 	$(CC) $(LDFLAGS) -o $@ $(OBJFILES) $(LIBS)
