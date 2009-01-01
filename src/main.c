@@ -37,8 +37,9 @@ struct imageformat *formats[] = {
 
 void usage(){
 	printf("USAGE: meh [FILE1 [FILE2 [...]]]\n");
-	printf("       meh -list                 : treat stdin as list of files\n");
-	printf("       meh -ctl                  : display files as they are received on stdin\n");
+	printf("       meh -list [LISTFILE]      : Treat file as list of images. Defaults to stdin.\n");
+	printf("       meh -ctl                  : Display files as they are received on stdin\n");
+	printf("       meh -v                    : Print version and exit.\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -316,6 +317,9 @@ int main(int argc, char *argv[]){
 		}else{
 			usage();
 		}
+	}else if(!strcmp(argv[1], "-v")){
+		printf("meh version 0.1\n");
+		return 0;
 	}else{
 		mode = MODE_NORM;
 		images = &argv[1];
