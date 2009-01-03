@@ -100,13 +100,15 @@ void drawimage(XImage *ximg, unsigned int width, unsigned int height){
 		if(xoffset){
 			rects[0].width = rects[1].width = xoffset;
 			rects[0].height = rects[1].height = height;
-			rects[1].x = width - xoffset;
+			rects[1].x = xoffset + ximg->width;
 			rects[1].y = 0;
+			rects[1].width = width - rects[1].x;
 		}else if(yoffset){
 			rects[0].width = rects[1].width = width;
-			rects[0].height = rects[1].height = yoffset;
+			rects[0].height = yoffset;
 			rects[1].x = 0;
-			rects[1].y = height - yoffset;
+			rects[1].y = yoffset + ximg->height;
+			rects[1].height = height - rects[1].y;
 		}
 		XFillRectangles(display, window, gc, rects, 2);
 	}

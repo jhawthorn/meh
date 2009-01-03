@@ -1,7 +1,4 @@
 
-A thin line of artifacts may be visible on the right of an image after
-resizing. This will be fixed in the next release.
-
 meh does not currently support display depths under 24 bits. This should be
 fixed in the next release.
 
