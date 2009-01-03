@@ -325,7 +325,7 @@ int main(int argc, char *argv[]){
 			usage();
 		}
 	}else if(!strcmp(argv[1], "-v")){
-		printf("meh version 0.1\n");
+		printf("meh version 0.2\n");
 		return 0;
 	}else{
 		mode = MODE_NORM;
