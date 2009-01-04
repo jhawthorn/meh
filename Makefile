@@ -3,7 +3,7 @@ SRCFILES := $(wildcard src/*.c)
 OBJFILES := $(SRCFILES:%.c=%.o)
 DEPFILES := $(OBJFILES:%.o=%.d)
 CLEANFILES := $(CLEANFILES) $(DEPFILES) $(OBJFILES) meh
-CFLAGS ?= -O2
+CFLAGS ?= -O3
 LIBS ?= -lX11 -lXext -ljpeg -lpng -lgif
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
@@ -20,7 +20,7 @@ meh: $(OBJFILES)
 	$(CC) $(CFLAGS) -MMD -MP -MT "$*.d" -c -o $@ $<
 
 install:
-	install -m 755 meh $(BINDIR)
+	install -Dm 755 meh $(BINDIR)
 
 # Clean
 clean:
