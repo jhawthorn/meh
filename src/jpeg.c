@@ -33,6 +33,7 @@ static void error_longjmp(j_common_ptr cinfo){
     longjmp(myerr->jmp_buffer, 1);
 }
 
+/* TODO progressive */
 static struct image *jpeg_open(FILE *f){
 	struct jpeg_t *j;
 
@@ -59,6 +60,7 @@ static struct image *jpeg_open(FILE *f){
 	j->cinfo.do_block_smoothing = 0;
 	j->cinfo.quantize_colors = 0;
 	j->cinfo.dct_method = JDCT_FASTEST;
+	//j->cinfo.scale_denom = 1; /* TODO: This should be changed for initial display of really large jpegs */
 
 	jpeg_calc_output_dimensions(&j->cinfo);
 
