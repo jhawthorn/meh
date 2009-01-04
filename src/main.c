@@ -205,9 +205,11 @@ int doredraw(struct image **i){
 		setaspect((*i)->bufwidth, (*i)->bufheight);
 
 		(*i)->buf = malloc(3 * (*i)->bufwidth * (*i)->bufheight);
+		TDEBUG_START
 		if((*i)->fmt->read(*i)){
 			fprintf(stderr, "read error!\n");
 		}
+		TDEBUG_END("read")
 		(*i)->fmt->close(*i);
 		return 1;
 	}else if(width && height){
