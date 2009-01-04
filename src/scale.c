@@ -3,7 +3,6 @@
 #include <sys/time.h>
 #include "meh.h"
 
-#define TDEBUG 0
 
 #define GETVAL0(c) ((ibuf[x0 + (c)] * (ur) + ibuf[x1 + (c)] * (u)) * (vr) >> 20)
 #define GETVAL(c) (( \
@@ -15,12 +14,6 @@
 				(ibufn[x0 + (c)]) * (ur) + \
 				(ibufn[x1 + (c)]) * (u)\
 			) * (v)) >> 20)
-
-
-#if TDEBUG
-struct timeval t0;
-struct timeval t1;
-#endif
 
 #define XLOOP(F) \
 	for(x = 0; x < ximg->width*4;){ \
@@ -51,9 +44,7 @@ void scale(struct image *img, XImage *ximg){
 	const unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
 	const unsigned int dy = img->bufwidth * 3;
 
-#if TDEBUG
-	gettimeofday(&t0, NULL);
-#endif
+	TDEBUG_START
 
 	unsigned int a[ximg->width * 4];
 	{
@@ -96,10 +87,7 @@ void scale(struct image *img, XImage *ximg){
 		y++;
 	}
 
-#if TDEBUG
-	gettimeofday(&t1, NULL);
-	printf("%li x100us\n", ((t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec) / 100);
-#endif
+	TDEBUG_END("scale")
 }
 
 void linearscale(struct image *img, XImage *ximg){
@@ -109,9 +97,7 @@ void linearscale(struct image *img, XImage *ximg){
 	unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
 	unsigned int dx = (img->bufwidth << 10) / ximg->width;
 
-#if TDEBUG
-	gettimeofday(&t0, NULL);
-#endif
+	TDEBUG_START
 
 	for(y = 0; y < ximg->height; y++){
 		unsigned int bufx = img->bufwidth / ximg->width;
@@ -127,10 +113,7 @@ void linearscale(struct image *img, XImage *ximg){
 		newBuf += jdy;
 	}
 
-#if TDEBUG
-	gettimeofday(&t1, NULL);
-	printf("%li x100us\n", ((t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec) / 100);
-#endif
+	TDEBUG_END("linearscale")
 }
 
 

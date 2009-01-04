@@ -36,3 +36,16 @@ void xinit();
 void drawimage(XImage *ximg, unsigned int width, unsigned int height);
 XImage *getimage(struct image *img, unsigned int width, unsigned int height);
 
+#ifdef TDEBUG
+#define TDEBUG_START \
+struct timeval t0;\
+struct timeval t1;\
+gettimeofday(&t0, NULL);
+#define TDEBUG_END(x) \
+gettimeofday(&t1, NULL); \
+printf("%s: %li x100us\n", (x), ((t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec) / 100);
+#else
+#define TDEBUG_START
+#define TDEBUG_END(x)
+#endif
+
