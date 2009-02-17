@@ -91,13 +91,16 @@ static int jpeg_read(struct image *img){
 
 	jpeg_start_decompress(&j->cinfo);
 
-	unsigned char *buf = img->buf;
 
 	if(j->cinfo.output_components == 3){
-		JSAMPARRAY buffer = &buf;
-		for(y = 0; y < j->cinfo.output_height; y++){
-			jpeg_read_scanlines(&j->cinfo, buffer, 1);
-			buf += row_stride;
+		JSAMPROW rows[2];
+		rows[0] = img->buf;
+		rows[1] = rows[0] + row_stride;
+		for(y = 0; y < j->cinfo.output_height;){
+			int n = jpeg_read_scanlines(&j->cinfo, rows, 2);
+			y += n;
+			rows[0] = rows[n-1] + row_stride;
+			rows[1] = rows[0] + row_stride;
 		}
 	}else if(j->cinfo.output_components == 1){
 		JSAMPARRAY buffer = (*j->cinfo.mem->alloc_sarray)((j_common_ptr)&j->cinfo, JPOOL_IMAGE, row_stride, 4);
