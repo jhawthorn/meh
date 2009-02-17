@@ -13,20 +13,20 @@ struct imageformat{
 
 typedef enum{
 	NONE,
-	IMG,
-	ALLOC,
-	LINEAR,
-	LINEARDRAWN,
-	BILINEAR,
-	BILINEARDRAWN,
-} drawstate;
+	FASTLOADED,
+	FASTSCALED,
+	FASTDRAWN,
+	LOADED,
+	SCALED,
+	DRAWN,
+	NOOP
+} imgstate;
 
 struct image{
 	unsigned char *buf;
 	unsigned int bufwidth, bufheight;
 	struct imageformat *fmt;
-	int redraw;
-	drawstate state;
+	imgstate state;
 	XImage *ximg;
 };
 

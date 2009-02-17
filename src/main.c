@@ -50,7 +50,6 @@ struct image *newimage(FILE *f){
 		if((img = (*fmt)->open(f))){
 			img->fmt = *fmt;
 			img->ximg = NULL;
-			img->redraw = 1;
 			img->state = NONE;
 			return img;
 		}
@@ -133,11 +132,10 @@ void handleevent(XEvent *event){
 					if(img->ximg)
 						XDestroyImage(img->ximg);
 					img->ximg = NULL;
-					img->redraw = 1;
-					if(img->state == LINEARDRAWN)
-						img->state = LINEAR;
-					else if(img->state == BILINEARDRAWN)
-						img->state = BILINEAR;
+					if(img->state >= LOADED)
+						img->state = LOADED;
+					else if(img->state > FASTLOADED)
+						img->state = FASTLOADED;
 				}
 
 				/* Some window managers need reminding */
@@ -147,11 +145,10 @@ void handleevent(XEvent *event){
 			break;
 		case Expose:
 			if(img){
-				img->redraw = 1;
-				if(img->state == LINEARDRAWN)
-					img->state = LINEAR;
-				else if(img->state == BILINEARDRAWN)
-					img->state = BILINEAR;
+				if(img->state >= LOADED)
+					img->state = LOADED;
+				else if(img->state > FASTLOADED)
+					img->state = FASTLOADED;
 			}
 			break;
 		case KeyPress:
@@ -192,8 +189,6 @@ int doredraw(struct image **i){
 				if((*i = imageopen2(images[imageidx]))){
 					break;
 				}
-				if(mode == MODE_CTL)
-					return 0;
 				direction();
 				if(imageidx == firstimg){
 					fprintf(stderr, "No valid images to view\n");
@@ -211,18 +206,19 @@ int doredraw(struct image **i){
 		}
 		TDEBUG_END("read")
 		(*i)->fmt->close(*i);
-		return 1;
+		(*i)->state = LOADED;
 	}else if(width && height){
-		if(!(*i)->ximg){
+		imgstate state = (*i)->state;
+		if(state == LOADED){
 			(*i)->ximg = getimage(*i, width, height);
-			return 1;
-		}else if((*i)->redraw){ /* TODO */
+			(*i)->state = SCALED;
+		}else if(state == SCALED){
+			assert((*i)->ximg);
 			drawimage((*i)->ximg, width, height);
-			(*i)->redraw = 0;
-			return 1;
+			(*i)->state = DRAWN;
 		}
 	}
-	return 0;
+	return (*i)->state != DRAWN;
 }
 
 void run(){
@@ -266,11 +262,10 @@ void run(){
 			}while(XPending(display));
 		}else if(ret == 0){
 			if(mode == MODE_CTL && images[0] == NULL){
-					tv = NULL;
-			}else if(!img || img->state != BILINEARDRAWN){
-				if(!doredraw(&img)){
-					tv = NULL;
-				}
+				tv = NULL;
+			}else if(!doredraw(&img)){
+				/* If we get here  everything has been drawn in full or we need more input to continue */
+				tv = NULL;
 			}
 		}
 	}
