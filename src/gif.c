@@ -77,6 +77,8 @@ static int gif_read(struct image *img){
 		img->buf[j++] = colormap[idx].Blue;
 	}
 
+	img->state = LOADED;
+
 	return 0;
 }
 
@@ -88,6 +90,7 @@ void gif_close(struct image *img){
 
 struct imageformat giflib = {
 	gif_open,
+	NULL,
 	gif_read,
 	gif_close
 };

@@ -7,6 +7,7 @@ struct image;
 
 struct imageformat{
 	struct image *(*open)(FILE *);
+	void (*prep)(struct image *);
 	int (*read)(struct image *);
 	void (*close)(struct image *);
 };
@@ -30,11 +31,10 @@ struct image{
 	XImage *ximg;
 };
 
-XImage *ximage(struct image *img, unsigned int width, unsigned int height);
 void setaspect(unsigned int w, unsigned int h);
 void xinit();
 void drawimage(XImage *ximg, unsigned int width, unsigned int height);
-XImage *getimage(struct image *img, unsigned int width, unsigned int height);
+XImage *getimage(struct image *img, unsigned int width, unsigned int height, int fast);
 
 #ifdef TDEBUG
 #define TDEBUG_START \

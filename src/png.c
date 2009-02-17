@@ -97,6 +97,9 @@ int png_read(struct image *img){
 
     png_read_image(p->png_ptr, row_pointers);
 	free(row_pointers);
+
+	img->state = LOADED;
+
 	return 0;
 }
 
@@ -108,6 +111,7 @@ void png_close(struct image *img){
 
 struct imageformat libpng = {
 	png_open,
+	NULL,
 	png_read,
 	png_close
 };

@@ -169,6 +169,9 @@ int bmp_read(struct image *img){
 	}
 
 	free(row);
+
+	img->state = LOADED;
+
 	return 0;
 }
 
@@ -180,6 +183,7 @@ void bmp_close(struct image *img){
 
 struct imageformat bmp = {
 	bmp_open,
+	NULL,
 	bmp_read,
 	bmp_close
 };

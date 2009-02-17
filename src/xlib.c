@@ -25,7 +25,7 @@ void scale(struct image *img, XImage *ximg);
 void linearscale(struct image *img, XImage *ximg);
 
 XShmSegmentInfo *shminfo;
-XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
+XImage *ximage(struct image *img, unsigned int width, unsigned int height, int fast){
 	int depth;
 	XImage *ximg = NULL;
 	Visual *vis;
@@ -71,7 +71,7 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 			ximg->data  = malloc(ximg->bytes_per_line * ximg->height);
 			XInitImage(ximg);
 		}
-		scale(img, ximg);
+		(fast ? linearscale : scale)(img, ximg);
 	}else{
 		/* TODO other depths */
 		fprintf(stderr, "This program does not yet support display depths <24.\n");
@@ -82,11 +82,11 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height) {
 	return ximg;
 }
 
-XImage *getimage(struct image *img, unsigned int width, unsigned int height){
+XImage *getimage(struct image *img, unsigned int width, unsigned int height, int fast){
 	if(width * img->bufheight > height * img->bufwidth){
-		return ximage(img, img->bufwidth * height / img->bufheight, height);
+		return ximage(img, img->bufwidth * height / img->bufheight, height, fast);
 	}else{
-		return ximage(img, width, img->bufheight * width / img->bufwidth);
+		return ximage(img, width, img->bufheight * width / img->bufwidth, fast);
 	}
 }
 

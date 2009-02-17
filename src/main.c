@@ -197,25 +197,42 @@ int doredraw(struct image **i){
 			}
 		}
 
-		setaspect((*i)->bufwidth, (*i)->bufheight);
+		(*i)->buf = NULL;
+		(*i)->state = NONE;
+	}else{
+		imgstate dstate = (*i)->state + 1;
+		if(dstate == LOADED || dstate == FASTLOADED){
+			if((*i)->fmt->prep){
+				(*i)->fmt->prep(*i);
+			}
+			setaspect((*i)->bufwidth, (*i)->bufheight);
 
-		(*i)->buf = malloc(3 * (*i)->bufwidth * (*i)->bufheight);
-		TDEBUG_START
-		if((*i)->fmt->read(*i)){
-			fprintf(stderr, "read error!\n");
-		}
-		TDEBUG_END("read")
-		(*i)->fmt->close(*i);
-		(*i)->state = LOADED;
-	}else if(width && height){
-		imgstate state = (*i)->state;
-		if(state == LOADED){
-			(*i)->ximg = getimage(*i, width, height);
-			(*i)->state = SCALED;
-		}else if(state == SCALED){
-			assert((*i)->ximg);
-			drawimage((*i)->ximg, width, height);
-			(*i)->state = DRAWN;
+			if((*i)->buf)
+				free((*i)->buf);
+			(*i)->buf = malloc(3 * (*i)->bufwidth * (*i)->bufheight);
+
+			TDEBUG_START
+			if((*i)->fmt->read(*i)){
+				fprintf(stderr, "read error!\n");
+			}
+			TDEBUG_END("read");
+
+			if((*i)->state == LOADED){
+				/* We are done with the format's methods */
+				(*i)->fmt->close(*i);
+			}
+
+			/* state should be set by format */
+			assert((*i)->state == LOADED || (*i)->state == FASTLOADED);
+		}else if(width && height){
+			if(dstate == SCALED || dstate == FASTSCALED){
+				(*i)->ximg = getimage(*i, width, height, dstate == FASTSCALED);
+				(*i)->state = dstate;
+			}else if(dstate == DRAWN || dstate == FASTDRAWN){
+				assert((*i)->ximg);
+				drawimage((*i)->ximg, width, height);
+				(*i)->state = dstate;
+			}
 		}
 	}
 	return (*i)->state != DRAWN;

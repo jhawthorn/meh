@@ -43,7 +43,6 @@ static struct image *jpeg_open(FILE *f){
 
 	j = malloc(sizeof(struct jpeg_t));
 	j->f = f;
-	rewind(f);
 
 	j->cinfo.err = jpeg_std_error(&j->jerr.pub);
 	j->jerr.pub.error_exit = error_longjmp;
@@ -51,8 +50,16 @@ static struct image *jpeg_open(FILE *f){
 		return NULL;
 	}
 
+	j->jerr.pub.error_exit = error_exit;
+	return (struct image *)j;
+}
+
+void jpeg_prep(struct image *img){
+	struct jpeg_t *j = (struct jpeg_t *)img;
+	
 	jpeg_create_decompress(&j->cinfo);
-	jpeg_stdio_src(&j->cinfo, f);
+	rewind(j->f);
+	jpeg_stdio_src(&j->cinfo, j->f);
 	jpeg_read_header(&j->cinfo, TRUE);
 
 	/* parameters */
@@ -60,16 +67,14 @@ static struct image *jpeg_open(FILE *f){
 	j->cinfo.do_block_smoothing = 0;
 	j->cinfo.quantize_colors = 0;
 	j->cinfo.dct_method = JDCT_FASTEST;
-	//j->cinfo.scale_denom = 1; /* TODO: This should be changed for initial display of really large jpegs */
+	j->cinfo.scale_denom = img->state < FASTLOADED ? 8 : 1; /* TODO: This should be changed done only for large jpegs */
 
 	jpeg_calc_output_dimensions(&j->cinfo);
 
 	j->img.bufwidth = j->cinfo.output_width;
 	j->img.bufheight = j->cinfo.output_height;
-
-	j->jerr.pub.error_exit = error_exit;
-	return (struct image *)j;
 }
+
 
 static int jpeg_read(struct image *img){
 	struct jpeg_t *j = (struct jpeg_t *)img;
@@ -110,6 +115,8 @@ static int jpeg_read(struct image *img){
 	}
 	jpeg_finish_decompress(&j->cinfo);
 
+	img->state = j->cinfo.scale_denom == 1 ? LOADED : FASTLOADED;
+
 	return 0;
 }
 
@@ -121,6 +128,7 @@ void jpeg_close(struct image *img){
 
 struct imageformat libjpeg = {
 	jpeg_open,
+	jpeg_prep,
 	jpeg_read,
 	jpeg_close
 };
