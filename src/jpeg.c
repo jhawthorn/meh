@@ -28,9 +28,9 @@ static void error_exit(j_common_ptr cinfo){
 }
 
 static void error_longjmp(j_common_ptr cinfo){
-    struct error_mgr *myerr = (struct error_mgr *)cinfo->err;
-    (*cinfo->err->output_message)(cinfo);
-    longjmp(myerr->jmp_buffer, 1);
+	struct error_mgr *myerr = (struct error_mgr *)cinfo->err;
+	(*cinfo->err->output_message)(cinfo);
+	longjmp(myerr->jmp_buffer, 1);
 }
 
 /* TODO progressive */
@@ -115,6 +115,23 @@ static int jpeg_read(struct image *img){
 			}
 			y += n;
 		}
+	}else if(j->cinfo.output_components == 4){
+		JSAMPARRAY buffer = (*j->cinfo.mem->alloc_sarray)((j_common_ptr)&j->cinfo, JPOOL_IMAGE, row_stride, 4);
+		for(y = 0; y < j->cinfo.output_height; ){
+			int n = jpeg_read_scanlines(&j->cinfo, buffer, 4);
+			for(b = 0; b < n; b++){
+				for(x = 0; x < j->cinfo.output_width; x++){
+					int tmp = buffer[b][x*4 + 3];
+					img->buf[a++] = buffer[b][x*4] * tmp / 255;
+					img->buf[a++] = buffer[b][x*4 + 1] * tmp / 255;
+					img->buf[a++] = buffer[b][x*4 + 2] * tmp / 255;
+				}
+			}
+			y += n;
+		}
+	}else{
+		fprintf(stderr, "Unsupported number of output components: %u\n", j->cinfo.output_components);
+		return 1;
 	}
 	jpeg_finish_decompress(&j->cinfo);
 
