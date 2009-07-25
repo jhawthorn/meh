@@ -58,15 +58,49 @@ struct image *netpbm_open(FILE *f){
 	return (struct image *)b;
 }
 
+static unsigned char readvali(struct netpbm_t *b){
+	skipspace(b->f);
+	int val;
+	fscanf(b->f, "%i", &val);
+	return val * 255 / b->maxval;
+}
+
+static unsigned char readvalb(struct netpbm_t *b){
+	int val = fgetc(b->f);
+	return val * 255 / b->maxval;
+}
+
 int netpbm_read(struct image *img){
 	struct netpbm_t *b = (struct netpbm_t *)img;
 	FILE *f = b->f;
 	int a = 0;
 
 	int left = img->bufwidth * img->bufheight;
-	int j, c;
+	int j, c, val;
 
-	if(b->format == '4'){
+	if(b->format == '1'){
+		while(left--){
+			skipspace(f);
+			val = fgetc(f);
+			val = val == '1' ? 0 : 255;
+			img->buf[a++] = val;
+			img->buf[a++] = val;
+			img->buf[a++] = val;
+		}
+	}else if(b->format == '2'){
+		while(left--){
+			val = readvali(b);
+			img->buf[a++] = val;
+			img->buf[a++] = val;
+			img->buf[a++] = val;
+		}
+	}else if(b->format == '3'){
+		while(left--){
+			img->buf[a++] = readvali(b);
+			img->buf[a++] = readvali(b);
+			img->buf[a++] = readvali(b);
+		}
+	}else if(b->format == '4'){
 		while(left){
 			c = fgetc(f);
 			for(j = 0; j < 8 && left; j++){
@@ -78,12 +112,18 @@ int netpbm_read(struct image *img){
 				left--;
 			}
 		}
+	}else if(b->format == '5'){
+		while(left--){
+			val = readvalb(b);
+			img->buf[a++] = val;
+			img->buf[a++] = val;
+			img->buf[a++] = val;
+		}
 	}else if(b->format == '6'){
-		while(left){
-			img->buf[a++] = fgetc(f);
-			img->buf[a++] = fgetc(f);
-			img->buf[a++] = fgetc(f);
-			left--;
+		while(left--){
+			img->buf[a++] = readvalb(b);
+			img->buf[a++] = readvalb(b);
+			img->buf[a++] = readvalb(b);
 		}
 	}
 
