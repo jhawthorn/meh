@@ -26,10 +26,12 @@ extern struct imageformat libjpeg;
 extern struct imageformat giflib;
 extern struct imageformat libpng;
 extern struct imageformat bmp;
+extern struct imageformat netpbm;
 struct imageformat *formats[] = {
 	&libjpeg,
 	&bmp,
 	&libpng,
+	&netpbm,
 	&giflib, /* HACK! make gif last (uses read()) */
 	NULL
 };
