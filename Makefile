@@ -9,10 +9,11 @@ PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 
 # User configuration
--include config.mk
+CONFIG ?= ../config
+-include configs/$(CONFIG).mk
 
 meh: $(OBJFILES)
-	$(CC) $(LDFLAGS) -o $@ $(OBJFILES) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJFILES) $(LIBS)
 
 -include $(DEPFILES)
 
