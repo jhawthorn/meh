@@ -120,11 +120,15 @@ int netpbm_read(struct image *img){
 			img->buf[a++] = val;
 		}
 	}else if(b->format == '6'){
-		while(left--){
-			img->buf[a++] = readvalb(b);
-			img->buf[a++] = readvalb(b);
-			img->buf[a++] = readvalb(b);
-		}
+    if(b->maxval == 255){
+      fread(img->buf, 1, left * 3, f);
+    }else{
+      while(left--){
+        img->buf[a++] = readvalb(b);
+        img->buf[a++] = readvalb(b);
+        img->buf[a++] = readvalb(b);
+      }
+    }
 	}
 
 	img->state = LOADED;
