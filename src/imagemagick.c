@@ -10,15 +10,15 @@
 #include "meh.h"
 
 struct image *imagemagick_open(FILE *f){
-  char template[] = "/tmp/fileXXXXXX";
-  char *ntmp = mktemp(template);
-  if(!ntmp){
-    perror("mktemp");
+  int tmpfd[2];
+  if(pipe(tmpfd)){
+    perror("pipe");
     exit(EXIT_FAILURE);
   }
 
   int pid;
   if(!(pid = fork())){
+    close(tmpfd[0]);
     int origfd = fileno(f);
     if(lseek(origfd, 0, SEEK_SET) != 0){
       perror("lseek");
@@ -31,24 +31,23 @@ struct image *imagemagick_open(FILE *f){
     argv[1] = "-depth";
     argv[2] = "255";
     asprintf(&argv[3], "fd:%i", origfd);
-    asprintf(&argv[4], "ppm:%s", ntmp);
+    asprintf(&argv[4], "ppm:fd:%i", tmpfd[1]);
     argv[5] = NULL;
     execvp(argv[0], argv);
     perror("exec");
     exit(EXIT_FAILURE);
   }else{
-    int status;
-    waitpid(pid, &status, 0);
-    if(status){
-      return NULL;
-    }
-    fclose(f);
+    close(tmpfd[1]);
     FILE *ftmp;
-    if(!(ftmp = fopen(ntmp, "rb"))){
+    if(!(ftmp = fdopen(tmpfd[0], "rb"))){
       perror("fopen");
       exit(EXIT_FAILURE);
     }
-    return netpbm.open(ftmp);
+    struct image *img = netpbm.open(ftmp);
+    if(!img)
+      return NULL;
+    fclose(f);
+    return img;
   }
 }
 
