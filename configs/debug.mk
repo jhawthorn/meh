@@ -1,1 +1,1 @@
-CFLAGS += -O0 -g -Wall
+CFLAGS += -O0 -g -Wall -Wextra

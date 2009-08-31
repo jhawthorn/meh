@@ -35,6 +35,7 @@ void setaspect(unsigned int w, unsigned int h);
 void xinit();
 void drawimage(XImage *ximg, unsigned int width, unsigned int height);
 XImage *getimage(struct image *img, unsigned int width, unsigned int height, int fast);
+void freeXImg(XImage *ximg);
 
 #ifdef TDEBUG
 #define TDEBUG_START \
@@ -56,5 +57,6 @@ extern struct imageformat libpng;
 extern struct imageformat bmp;
 extern struct imageformat netpbm;
 extern struct imageformat imagemagick;
+
 
 
