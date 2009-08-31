@@ -33,7 +33,15 @@ struct image *imagemagick_open(FILE *f){
     asprintf(&argv[3], "fd:%i", origfd);
     asprintf(&argv[4], "ppm:fd:%i", tmpfd[1]);
     argv[5] = NULL;
+
+#ifndef NDEBUG
+    /* STFU OMFG */
+    freopen("/dev/null", "w", stdout);
+    freopen("/dev/null", "w", stderr);
+#endif
+
     execvp(argv[0], argv);
+
     perror("exec");
     exit(EXIT_FAILURE);
   }else{
