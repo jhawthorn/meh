@@ -102,6 +102,8 @@ struct image *bmp_open(FILE *f){
 		b->rowwidth += 4 - (b->rowwidth & 3);
 	}
 
+  b->img.fmt = &bmp;
+
 	return (struct image *)b;
 }
 

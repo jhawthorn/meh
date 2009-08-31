@@ -49,3 +49,12 @@ printf("%s: %li e2 us\n", (x), ((t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec -
 #define TDEBUG_END(x)
 #endif
 
+/* Supported Formats */
+extern struct imageformat libjpeg;
+extern struct imageformat giflib;
+extern struct imageformat libpng;
+extern struct imageformat bmp;
+extern struct imageformat netpbm;
+extern struct imageformat imagemagick;
+
+

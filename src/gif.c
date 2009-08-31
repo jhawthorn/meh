@@ -45,6 +45,8 @@ static struct image *gif_open(FILE *f){
 	g->img.bufwidth = gif->SWidth;
 	g->img.bufheight = gif->SHeight;
 
+  g->img.fmt = &giflib;
+
 	return (struct image *)g;
 }
 

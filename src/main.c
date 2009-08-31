@@ -22,17 +22,13 @@ static int mode;
 extern Display *display;
 
 /* Supported Formats */
-extern struct imageformat libjpeg;
-extern struct imageformat giflib;
-extern struct imageformat libpng;
-extern struct imageformat bmp;
-extern struct imageformat netpbm;
 struct imageformat *formats[] = {
 	&libjpeg,
 	&bmp,
 	&libpng,
 	&netpbm,
 	&giflib, /* HACK! make gif last (uses read()) */
+	&imagemagick,
 	NULL
 };
 
@@ -50,7 +46,7 @@ struct image *newimage(FILE *f){
 	struct imageformat **fmt = formats;
 	for(fmt = formats; *fmt; fmt++){
 		if((img = (*fmt)->open(f))){
-			img->fmt = *fmt;
+			//img->fmt = *fmt;
 			img->ximg = NULL;
 			img->state = NONE;
 			return img;

@@ -57,6 +57,8 @@ struct image *png_open(FILE *f){
 	p->img.bufwidth = png_get_image_width(p->png_ptr, p->info_ptr);
 	p->img.bufheight = png_get_image_height(p->png_ptr, p->info_ptr);
 
+  p->img.fmt = &libpng;
+
 	return (struct image *)p;
 }
 

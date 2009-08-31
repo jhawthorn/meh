@@ -54,6 +54,7 @@ struct image *netpbm_open(FILE *f){
 	fgetc(f);
 
 	b->f = f;
+	b->img.fmt = &netpbm;
 
 	return (struct image *)b;
 }
@@ -66,8 +67,14 @@ static unsigned char readvali(struct netpbm_t *b){
 }
 
 static unsigned char readvalb(struct netpbm_t *b){
-	int val = fgetc(b->f);
-	return val * 255 / b->maxval;
+  if(b->maxval == 65535){
+    int val = fgetc(b->f) << 8;
+    val |= fgetc(b->f);
+    return val * 255 / b->maxval;
+  }else{
+    int val = fgetc(b->f);
+    return val * 255 / b->maxval;
+  }
 }
 
 int netpbm_read(struct image *img){

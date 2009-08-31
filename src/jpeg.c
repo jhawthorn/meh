@@ -51,6 +51,9 @@ static struct image *jpeg_open(FILE *f){
 	}
 
 	j->jerr.pub.error_exit = error_exit;
+
+  j->img.fmt = &libjpeg;
+
 	return (struct image *)j;
 }
 
