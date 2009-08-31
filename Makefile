@@ -11,7 +11,7 @@ BINDIR = $(PREFIX)/bin
 CONFIG ?= ../config
 -include configs/$(CONFIG).mk
 
-CFLAGS ?= -O3
+CFLAGS ?= -O3 -DNDEBUG
 
 meh: $(OBJFILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJFILES) $(LIBS)
