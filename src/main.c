@@ -267,6 +267,7 @@ void run(){
 				exit(EXIT_SUCCESS);
 			}
 			images[0][read-1] = '\0';
+			tv = &tv0;
 		}
 		if(XPending(display)){
 			tv = &tv0;
