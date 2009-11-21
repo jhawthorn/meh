@@ -57,14 +57,14 @@ struct image *png_open(FILE *f){
 	p->img.bufwidth = png_get_image_width(p->png_ptr, p->info_ptr);
 	p->img.bufheight = png_get_image_height(p->png_ptr, p->info_ptr);
 
-  p->img.fmt = &libpng;
+	p->img.fmt = &libpng;
 
 	return (struct image *)p;
 }
 
 int png_read(struct image *img){
 	unsigned int y;
-    png_bytepp row_pointers;
+	png_bytepp row_pointers;
 	struct png_t *p = (struct png_t *)img;
 
 	if(setjmp(png_jmpbuf(p->png_ptr))){
@@ -93,11 +93,11 @@ int png_read(struct image *img){
 		png_read_update_info(p->png_ptr, p->info_ptr);
 	}
 
-    row_pointers = (png_bytepp)malloc(img->bufheight * sizeof(png_bytep));
-    for(y = 0; y < img->bufheight; y++)
+	row_pointers = (png_bytepp)malloc(img->bufheight * sizeof(png_bytep));
+	for(y = 0; y < img->bufheight; y++)
 		row_pointers[y] = img->buf + y * img->bufwidth * 3;
 
-    png_read_image(p->png_ptr, row_pointers);
+	png_read_image(p->png_ptr, row_pointers);
 	free(row_pointers);
 
 	img->state = LOADED;
