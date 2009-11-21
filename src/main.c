@@ -46,7 +46,6 @@ struct image *newimage(FILE *f){
 	struct imageformat **fmt = formats;
 	for(fmt = formats; *fmt; fmt++){
 		if((img = (*fmt)->open(f))){
-			//img->fmt = *fmt;
 			img->ximg = NULL;
 			img->state = NONE;
 			return img;
@@ -66,9 +65,8 @@ static int imageslen;
 static int imageidx;
 static char **images;
 
-//static char *filename = NULL;
 static int width = 0, height = 0;
-static struct image *img = NULL;
+static struct image *curimg = NULL;
 
 void freeimage(struct image *img){
 	if(img){
@@ -110,12 +108,9 @@ void handlekeypress(XEvent *event){
 			direction = key == XK_j ? nextimage : previmage;
 			direction();
 			/* Pass through */
-			freeimage(img);
-			img = NULL;
-			break;
 		case XK_r:
-			freeimage(img);
-			img = NULL;
+			freeimage(curimg);
+			curimg = NULL;
 			break;
 	}
 }
@@ -126,27 +121,27 @@ void handleevent(XEvent *event){
 			if(width != event->xconfigure.width || height != event->xconfigure.height){
 				width = event->xconfigure.width;
 				height = event->xconfigure.height;
-				if(img){
-					if(img->ximg)
-						XDestroyImage(img->ximg);
-					img->ximg = NULL;
-					if(img->state >= LOADED)
-						img->state = LOADED;
-					else if(img->state > FASTLOADED)
-						img->state = FASTLOADED;
+				if(curimg){
+					if(curimg->ximg)
+						XDestroyImage(curimg->ximg);
+					curimg->ximg = NULL;
+					if(curimg->state >= LOADED)
+						curimg->state = LOADED;
+					else if(curimg->state > FASTLOADED)
+						curimg->state = FASTLOADED;
 				}
 
 				/* Some window managers need reminding */
-				if(img)
-					setaspect(img->bufwidth, img->bufheight);
+				if(curimg)
+					setaspect(curimg->bufwidth, curimg->bufheight);
 			}
 			break;
 		case Expose:
-			if(img){
-				if(img->state >= LOADED)
-					img->state = LOADED;
-				else if(img->state > FASTLOADED)
-					img->state = FASTLOADED;
+			if(curimg){
+				if(curimg->state >= LOADED)
+					curimg->state = LOADED;
+				else if(curimg->state > FASTLOADED)
+					curimg->state = FASTLOADED;
 			}
 			break;
 		case KeyPress:
@@ -157,8 +152,7 @@ void handleevent(XEvent *event){
 	}
 }
 
-struct image *imageopen2(){
-	char *filename = images[imageidx];
+struct image *imageopen2(char *filename){
 	struct image *i;
 	FILE *f;
 	if((f = fopen(filename, "rb"))){
@@ -260,8 +254,8 @@ void run(){
 			if(images[0]){
 				free(images[0]);
 			}
-			freeimage(img);
-			img = NULL;
+			freeimage(curimg);
+			curimg = NULL;
 			images[0] = NULL;
 			if((read = getline(images, &slen, stdin)) == -1){
 				exit(EXIT_SUCCESS);
@@ -279,7 +273,7 @@ void run(){
 		}else if(ret == 0){
 			if(mode == MODE_CTL && images[0] == NULL){
 				tv = NULL;
-			}else if(!doredraw(&img)){
+			}else if(!doredraw(&curimg)){
 				/* If we get here  everything has been drawn in full or we need more input to continue */
 				tv = NULL;
 			}

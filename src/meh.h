@@ -20,7 +20,7 @@ typedef enum{
 	LOADED,
 	SCALED,
 	DRAWN,
-	NOOP
+	ERROR
 } imgstate;
 
 struct image{
