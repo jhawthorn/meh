@@ -1,8 +1,12 @@
 
+TARGET := meh
+TESTTARGET := test/test
+
 SRCFILES := $(wildcard src/*.c)
 OBJFILES := $(SRCFILES:%.c=%.o)
 DEPFILES := $(OBJFILES:%.o=%.d)
-CLEANFILES := $(CLEANFILES) $(DEPFILES) $(OBJFILES) meh
+TESTCLEAN := $(TESTTARGET) $(TESTTARGET).d $(TESTTARGET).o
+CLEANFILES := $(CLEANFILES) $(DEPFILES) $(OBJFILES) test/test.o test/test.d test/test $(TARGET)
 LIBS ?= -lX11 -lXext -ljpeg -lpng -lgif
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
@@ -14,7 +18,13 @@ CONFIG ?= ../config
 CFLAGS ?= -O3 -DNDEBUG
 
 meh: $(OBJFILES)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJFILES) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+test: $(TESTTARGET)
+	./$(TESTTARGET)
+
+test/test: test/test.o $(filter-out src/main.o, $(OBJFILES))
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 -include $(DEPFILES)
 
@@ -28,5 +38,5 @@ install:
 clean:
 	$(RM) $(CLEANFILES)
 
-.PHONY: clean
+.PHONY: clean test
 

@@ -31,6 +31,12 @@ struct image{
 	XImage *ximg;
 };
 
+
+/* scale */
+void scale(struct image *img, int width, int height, int bytesperline, char* __restrict__ newBuf);
+void nearestscale(struct image *img, int width, int height, int bytesperline, char* __restrict__ newBuf);
+
+/* XLib */
 void setaspect(unsigned int w, unsigned int h);
 void xinit();
 void drawimage(XImage *ximg, unsigned int width, unsigned int height);

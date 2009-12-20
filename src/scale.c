@@ -16,7 +16,7 @@
 			) * (v)) >> 20)
 
 #define XLOOP(F) \
-	for(x = 0; x < ximg->width*4;){ \
+	for(x = 0; x < width*4;){ \
 		const unsigned int x0 = a[x++];\
 		const unsigned int x1 = a[x++];\
 		const unsigned int u  = a[x++];\
@@ -28,29 +28,28 @@
 	}
 
 #define YITER \
-	const unsigned int bufy = (y << 10) * img->bufheight / ximg->height;\
+	const unsigned int bufy = (y << 10) * img->bufheight / height;\
 	const unsigned int v = (bufy & 1023);\
 	const unsigned int vr = 1023^v;\
-	ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];\
+	ibuf = &img->buf[y * img->bufheight / height * img->bufwidth * 3];\
 	ibufn = ibuf + dy;
 
 
-void scale(struct image *img, XImage *ximg){
+void scale(struct image *img, int width, int height, int bytesperline, char* __restrict__ newBuf){
 	int x, y;
 	const unsigned char * __restrict__ ibuf;
 	const unsigned char * __restrict__ ibufn;
 	const unsigned char * const bufend = &img->buf[img->bufwidth * img->bufheight * 3];
-	char* __restrict__ newBuf = ximg->data;
-	const unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
+	const unsigned int jdy = bytesperline / 4 - width;
 	const unsigned int dy = img->bufwidth * 3;
 
 	TDEBUG_START
 
-	unsigned int a[ximg->width * 4];
+	unsigned int a[width * 4];
 	{
-		unsigned int dx = (img->bufwidth << 10) / ximg->width;
-		unsigned int bufx = img->bufwidth / ximg->width;
-		for(x = 0; x < ximg->width * 4;){
+		unsigned int dx = (img->bufwidth << 10) / width;
+		unsigned int bufx = img->bufwidth / width;
+		for(x = 0; x < width * 4;){
 			if((bufx >> 10) >= img->bufwidth - 1){
 				a[x++] = (img->bufwidth - 1) * 3;
 				a[x++] = (img->bufwidth - 1) * 3;
@@ -90,20 +89,19 @@ void scale(struct image *img, XImage *ximg){
 	TDEBUG_END("scale")
 }
 
-void linearscale(struct image *img, XImage *ximg){
+void nearestscale(struct image *img, int width, int height, int bytesperline, char* __restrict__ newBuf){
 	int x, y;
 	unsigned char * __restrict__ ibuf;
-	char* __restrict__ newBuf = ximg->data;
-	unsigned int jdy = ximg->bytes_per_line / 4 - ximg->width;
-	unsigned int dx = (img->bufwidth << 10) / ximg->width;
+	unsigned int jdy = bytesperline / 4 - width;
+	unsigned int dx = (img->bufwidth << 10) / width;
 
 	TDEBUG_START
 
-	for(y = 0; y < ximg->height; y++){
-		unsigned int bufx = img->bufwidth / ximg->width;
-		ibuf = &img->buf[y * img->bufheight / ximg->height * img->bufwidth * 3];
+	for(y = 0; y < height; y++){
+		unsigned int bufx = img->bufwidth / width;
+		ibuf = &img->buf[y * img->bufheight / height * img->bufwidth * 3];
 
-		for(x = 0; x < ximg->width; x++){
+		for(x = 0; x < width; x++){
 			*newBuf++ = (ibuf[(bufx >> 10)*3+2]);
 			*newBuf++ = (ibuf[(bufx >> 10)*3+1]);
 			*newBuf++ = (ibuf[(bufx >> 10)*3+0]);

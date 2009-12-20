@@ -21,9 +21,6 @@ GC gc;
 
 int xshm = 0;
 
-void scale(struct image *img, XImage *ximg);
-void linearscale(struct image *img, XImage *ximg);
-
 XShmSegmentInfo *shminfo;
 XImage *ximage(struct image *img, unsigned int width, unsigned int height, int fast){
 	int depth;
@@ -71,7 +68,7 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height, int f
 			ximg->data  = malloc(ximg->bytes_per_line * ximg->height);
 			XInitImage(ximg);
 		}
-		(fast ? linearscale : scale)(img, ximg);
+		(fast ? nearestscale : scale)(img, ximg->width, ximg->height, ximg->bytes_per_line, ximg->data);
 	}else{
 		/* TODO other depths */
 		fprintf(stderr, "This program does not yet support display depths <24.\n");
