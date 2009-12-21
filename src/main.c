@@ -138,10 +138,10 @@ void handleevent(XEvent *event){
 			break;
 		case Expose:
 			if(curimg){
-				if(curimg->state >= LOADED)
-					curimg->state = LOADED;
-				else if(curimg->state > FASTLOADED)
-					curimg->state = FASTLOADED;
+				if(curimg->state >= SCALED)
+					curimg->state = SCALED;
+				else if(curimg->state > FASTSCALED)
+					curimg->state = FASTSCALED;
 			}
 			break;
 		case KeyPress:
