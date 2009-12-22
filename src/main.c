@@ -127,7 +127,7 @@ void handleevent(XEvent *event){
 					curimg->ximg = NULL;
 					if(curimg->state >= LOADED)
 						curimg->state = LOADED;
-					else if(curimg->state > FASTLOADED)
+					else if(curimg->state >= FASTLOADED)
 						curimg->state = FASTLOADED;
 				}
 
@@ -140,7 +140,9 @@ void handleevent(XEvent *event){
 			if(curimg){
 				if(curimg->state >= SCALED)
 					curimg->state = SCALED;
-				else if(curimg->state > FASTSCALED)
+				else if(curimg->state >= LOADED)
+					curimg->state = LOADED;
+				else if(curimg->state >= FASTSCALED)
 					curimg->state = FASTSCALED;
 			}
 			break;
