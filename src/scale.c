@@ -1,4 +1,6 @@
 
+#include <assert.h>
+#include <string.h>
 #include <stdint.h>
 #include <sys/time.h>
 #include "meh.h"
@@ -34,9 +36,64 @@
 	ibuf = &img->buf[y * img->bufheight / height * img->bufwidth * 3];\
 	ibufn = ibuf + dy;
 
+/*
+ * Super sampling scale. Down only.
+ */
+static void superscale(struct image *img, unsigned int width, unsigned int height, unsigned int bytesperline, char* __restrict__ newBuf){
+	uint32_t x, y, i;
+	unsigned char * __restrict__ ibuf;
+	ibuf = &img->buf[0];
 
-void scale(struct image *img, int width, int height, int bytesperline, char* __restrict__ newBuf){
-	int x, y;
+	TDEBUG_START
+
+	int divx[bytesperline];
+	int divy[bytesperline];
+	memset(divx, 0, sizeof divx);
+	memset(divy, 0, sizeof divy);
+	for(x = 0; x < img->bufwidth; x++){
+		 divx[x * width / img->bufwidth]++;
+	}
+	for(y = 0; y < img->bufheight; y++){
+		 divy[y * height / img->bufheight]++;
+	}
+
+	int xoff[img->bufwidth];
+	for(x = 0; x < img->bufwidth; x++){
+		xoff[x] = (x * width / img->bufwidth) * 3;
+	}
+
+	int tmp[width * 4];
+	unsigned int y0;
+	for(y = 0; y < img->bufheight;){
+		int ydiv = divy[y * height / img->bufheight];
+		char * __restrict__ ydest = &newBuf[bytesperline * (y * height / img->bufheight)];
+		memset(tmp, 0, sizeof tmp);
+		ibuf = &img->buf[y * img->bufwidth * 3];
+		for(y0 = y; y < y0 + ydiv; y++){
+			for(x = 0; x < img->bufwidth; x++){
+				int * __restrict__ dest = tmp + xoff[x];
+				for(i = 0; i < 3; i++){
+					*dest++ += *ibuf++;
+				}
+			}
+		}
+		int * __restrict__ src = tmp;
+		for(x = 0; x < width; x++){
+			ydest[2] = *src++ / ydiv / divx[x];
+			ydest[1] = *src++ / ydiv / divx[x];
+			ydest[0] = *src++ / ydiv / divx[x];
+			ydest += 4;
+		}
+	}
+
+	TDEBUG_END("superscale")
+}
+
+/*
+ * Bilinear scale. Used for up only.
+ */
+static void bilinearscale(struct image *img, unsigned int width, unsigned int height, unsigned int bytesperline, char* __restrict__ newBuf){
+	unsigned int x, y;
 	const unsigned char * __restrict__ ibuf;
 	const unsigned char * __restrict__ ibufn;
 	const unsigned char * const bufend = &img->buf[img->bufwidth * img->bufheight * 3];
@@ -86,11 +143,22 @@ void scale(struct image *img, int width, int height, int bytesperline, char* __r
 		y++;
 	}
 
-	TDEBUG_END("scale")
+	TDEBUG_END("bilinearscale")
 }
 
-void nearestscale(struct image *img, int width, int height, int bytesperline, char* __restrict__ newBuf){
-	int x, y;
+void scale(struct image *img, unsigned int width, unsigned int height, unsigned int bytesperline, char* __restrict__ newBuf){
+	if(width < img->bufwidth){
+		superscale(img, width, height, bytesperline, newBuf);
+	}else{
+		bilinearscale(img, width, height, bytesperline, newBuf);
+	}
+}
+
+/*
+ * Nearest neighbour. Fast up and down.
+ */
+void nearestscale(struct image *img, unsigned int width, unsigned int height, unsigned int bytesperline, char* __restrict__ newBuf){
+	unsigned int x, y;
 	unsigned char * __restrict__ ibuf;
 	unsigned int jdy = bytesperline / 4 - width;
 	unsigned int dx = (img->bufwidth << 10) / width;
@@ -111,7 +179,7 @@ void nearestscale(struct image *img, int width, int height, int bytesperline, ch
 		newBuf += jdy;
 	}
 
-	TDEBUG_END("linearscale")
+	TDEBUG_END("nearestscale")
 }
 
 
