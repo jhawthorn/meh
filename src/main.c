@@ -168,14 +168,14 @@ struct image *imageopen2(char *filename){
 	return NULL;
 }
 
-int doredraw(struct image **i){
+void doredraw(struct image **i){
 	if(!*i){
 		if(mode == MODE_CTL){
 			if(images[0] == NULL)
-				return 0;
+				return;
 			if(!(*i = imageopen2(images[0]))){
 				images[0] = NULL;
-				return 0;
+				return;
 			}
 		}else{
 			int firstimg = imageidx;
@@ -219,17 +219,18 @@ int doredraw(struct image **i){
 			/* state should be set by format */
 			assert((*i)->state == LOADED || (*i)->state == FASTLOADED);
 		}else if(width && height){
-			if(dstate == SCALED || dstate == FASTSCALED){
-				(*i)->ximg = getimage(*i, width, height, dstate == FASTSCALED);
+			if(dstate == SCALED || dstate == FASTSCALED2 || dstate == FASTSCALED){
+				(*i)->ximg = getimage(*i, width, height, dstate != SCALED);
 				(*i)->state = dstate;
-			}else if(dstate == DRAWN || dstate == FASTDRAWN){
-				assert((*i)->ximg);
-				drawimage((*i)->ximg, width, height);
-				(*i)->state = dstate;
+				dstate++; /* Always draw after rendering */
 			}
 		}
+		if(dstate == DRAWN || dstate == FASTDRAWN || dstate == FASTDRAWN2){
+			assert((*i)->ximg);
+			drawimage((*i)->ximg, width, height);
+			(*i)->state = dstate;
+		}
 	}
-	return (*i)->state != DRAWN;
 }
 
 void run(){
@@ -275,7 +276,10 @@ void run(){
 		}else if(ret == 0){
 			if(mode == MODE_CTL && images[0] == NULL){
 				tv = NULL;
-			}else if(!doredraw(&curimg)){
+			}else if(!curimg || curimg->state != DRAWN){
+				doredraw(&curimg);
+			//}else if(!nextimg || nextimg->state != DRAWN){
+			}else{
 				/* If we get here  everything has been drawn in full or we need more input to continue */
 				tv = NULL;
 			}
