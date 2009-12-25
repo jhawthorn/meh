@@ -46,8 +46,8 @@ static void superscale(struct image *img, unsigned int width, unsigned int heigh
 
 	TDEBUG_START
 
-	int divx[bytesperline];
-	int divy[bytesperline];
+	unsigned int divx[bytesperline];
+	unsigned int divy[bytesperline];
 	memset(divx, 0, sizeof divx);
 	memset(divy, 0, sizeof divy);
 	for(x = 0; x < img->bufwidth; x++){
@@ -57,27 +57,29 @@ static void superscale(struct image *img, unsigned int width, unsigned int heigh
 		 divy[y * height / img->bufheight]++;
 	}
 
-	int xoff[img->bufwidth];
+	unsigned int tmp[width * 4];
+
+	unsigned int *xoff[img->bufwidth];
 	for(x = 0; x < img->bufwidth; x++){
-		xoff[x] = (x * width / img->bufwidth) * 3;
+		xoff[x] = tmp + (x * width / img->bufwidth) * 3;
 	}
 
-	int tmp[width * 4];
 	unsigned int y0;
+	int * __restrict__ dest;
 	for(y = 0; y < img->bufheight;){
-		int ydiv = divy[y * height / img->bufheight];
+		unsigned int ydiv = divy[y * height / img->bufheight];
 		char * __restrict__ ydest = &newBuf[bytesperline * (y * height / img->bufheight)];
 		memset(tmp, 0, sizeof tmp);
 		ibuf = &img->buf[y * img->bufwidth * 3];
-		for(y0 = y; y < y0 + ydiv; y++){
+		for(y0 = y + ydiv; y < y0; y++){
 			for(x = 0; x < img->bufwidth; x++){
-				int * __restrict__ dest = tmp + xoff[x];
+				dest = xoff[x];
 				for(i = 0; i < 3; i++){
 					*dest++ += *ibuf++;
 				}
 			}
 		}
-		int * __restrict__ src = tmp;
+		unsigned int * __restrict__ src = tmp;
 		for(x = 0; x < width; x++){
 			ydest[2] = *src++ / ydiv / divx[x];
 			ydest[1] = *src++ / ydiv / divx[x];
