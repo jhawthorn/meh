@@ -139,7 +139,7 @@ int netpbm_read(struct image *img){
 		}
 	}
 
-	img->state = LOADED;
+	img->state |= LOADED | SLOWLOADED;
 	return 0;
 }
 

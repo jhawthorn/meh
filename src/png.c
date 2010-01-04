@@ -100,7 +100,7 @@ int png_read(struct image *img){
 	png_read_image(p->png_ptr, row_pointers);
 	free(row_pointers);
 
-	img->state = LOADED;
+	img->state |= LOADED | SLOWLOADED;
 
 	return 0;
 }

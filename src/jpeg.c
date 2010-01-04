@@ -70,7 +70,7 @@ void jpeg_prep(struct image *img){
 	j->cinfo.do_block_smoothing = 0;
 	j->cinfo.quantize_colors = 0;
 	j->cinfo.dct_method = JDCT_FASTEST;
-	j->cinfo.scale_denom = img->state < FASTLOADED ? 8 : 1; /* TODO: This should be changed done only for large jpegs */
+	j->cinfo.scale_denom = (img->state & LOADED) ? 1 : 8; /* TODO: This should be changed done only for large jpegs */
 
 	jpeg_calc_output_dimensions(&j->cinfo);
 
@@ -138,7 +138,9 @@ static int jpeg_read(struct image *img){
 	}
 	jpeg_finish_decompress(&j->cinfo);
 
-	img->state = j->cinfo.scale_denom == 1 ? LOADED : FASTLOADED;
+	img->state |= LOADED;
+	if(j->cinfo.scale_denom == 1)
+		img->state |= SLOWLOADED;
 
 	return 0;
 }

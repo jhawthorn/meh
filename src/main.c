@@ -8,18 +8,12 @@
 #include <string.h>
 #include <sys/time.h>
 
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/keysym.h>
-
 #include "meh.h"
 
 #define MODE_NORM 0
 #define MODE_LIST 1
 #define MODE_CTL 2
-static int mode;
-
-extern Display *display;
+int mode;
 
 /* Supported Formats */
 struct imageformat *formats[] = {
@@ -46,8 +40,8 @@ struct image *newimage(FILE *f){
 	struct imageformat **fmt = formats;
 	for(fmt = formats; *fmt; fmt++){
 		if((img = (*fmt)->open(f))){
-			img->ximg = NULL;
 			img->state = NONE;
+			img->backend = NULL;
 			return img;
 		}
 	}
@@ -65,13 +59,12 @@ static int imageslen;
 static int imageidx;
 static char **images;
 
-static int width = 0, height = 0;
-static struct image *curimg = NULL;
+int width = 0, height = 0;
+struct image *curimg = NULL;
 
 void freeimage(struct image *img){
 	if(img){
-		if(img->ximg)
-			freeXImg(img->ximg);
+		backend_free(img);
 		if(img->buf)
 			free(img->buf);
 		free(img);
@@ -81,85 +74,51 @@ void freeimage(struct image *img){
 void nextimage(){
 	if(++imageidx == imageslen)
 		imageidx = 0;
+	freeimage(curimg);
+	curimg = NULL;
 }
 
 void previmage(){
 	if(--imageidx < 0)
 		imageidx = imageslen - 1;
+	freeimage(curimg);
+	curimg = NULL;
 }
 
 static void (*direction)() = nextimage;
 
-void handlekeypress(XEvent *event){
-	KeySym key = XLookupKeysym(&event->xkey, 0);
-	switch(key){
-		case XK_Escape:
-		case XK_q:
-			exit(0);
-			break;
-		case XK_Return:
-			puts(images[imageidx]);
-			fflush(stdout);
-			break;
-		case XK_j:
-		case XK_k:
-			if(mode == MODE_CTL)
-				return;
-			direction = key == XK_j ? nextimage : previmage;
-			direction();
-			/* Pass through */
-		case XK_r:
-			freeimage(curimg);
-			curimg = NULL;
-			break;
+void key_reload(){
+	freeimage(curimg);
+	curimg = NULL;
+}
+void key_next(){
+	if(mode != MODE_CTL){
+		direction = nextimage;
+		direction();
 	}
 }
-
-void handleevent(XEvent *event){
-	switch(event->type){
-		case ConfigureNotify:
-			if(width != event->xconfigure.width || height != event->xconfigure.height){
-				width = event->xconfigure.width;
-				height = event->xconfigure.height;
-				if(curimg){
-					if(curimg->ximg)
-						XDestroyImage(curimg->ximg);
-					curimg->ximg = NULL;
-					if(curimg->state >= LOADED)
-						curimg->state = LOADED;
-					else if(curimg->state >= FASTLOADED)
-						curimg->state = FASTLOADED;
-				}
-
-				/* Some window managers need reminding */
-				if(curimg)
-					setaspect(curimg->bufwidth, curimg->bufheight);
-			}
-			break;
-		case Expose:
-			if(curimg){
-				if(curimg->state >= SCALED)
-					curimg->state = SCALED;
-				else if(curimg->state >= LOADED)
-					curimg->state = LOADED;
-				else if(curimg->state >= FASTSCALED)
-					curimg->state = FASTSCALED;
-			}
-			break;
-		case KeyPress:
-			if(mode == MODE_CTL)
-				break;
-			handlekeypress(event);
-			break;
+void key_prev(){
+	if(mode != MODE_CTL){
+		direction = previmage;
+		direction();
 	}
+}
+void key_quit(){
+	exit(EXIT_SUCCESS);
+}
+
+void key_action(){
+	puts(images[imageidx]);
+	fflush(stdout);
 }
 
 struct image *imageopen2(char *filename){
 	struct image *i;
 	FILE *f;
 	if((f = fopen(filename, "rb"))){
-		if((i = imgopen(f)))
+		if((i = imgopen(f))){
 			return i;
+		}
 		else
 			fprintf(stderr, "Invalid format '%s'\n", filename);
 	}else{
@@ -168,14 +127,14 @@ struct image *imageopen2(char *filename){
 	return NULL;
 }
 
-void doredraw(struct image **i){
+static int doredraw(struct image **i){
 	if(!*i){
 		if(mode == MODE_CTL){
 			if(images[0] == NULL)
-				return;
+				return 0;
 			if(!(*i = imageopen2(images[0]))){
 				images[0] = NULL;
-				return;
+				return 0;
 			}
 		}else{
 			int firstimg = imageidx;
@@ -193,13 +152,14 @@ void doredraw(struct image **i){
 
 		(*i)->buf = NULL;
 		(*i)->state = NONE;
+		return 1;
 	}else{
-		imgstate dstate = (*i)->state + 1;
-		if(dstate == LOADED || dstate == FASTLOADED){
+		imgstate state = (*i)->state;
+		if(!(state & LOADED) || ((state & (SLOWLOADED | DRAWN)) == (DRAWN)) ){
 			if((*i)->fmt->prep){
 				(*i)->fmt->prep(*i);
 			}
-			setaspect((*i)->bufwidth, (*i)->bufheight);
+			backend_setaspect((*i)->bufwidth, (*i)->bufheight);
 
 			if((*i)->buf)
 				free((*i)->buf);
@@ -211,80 +171,35 @@ void doredraw(struct image **i){
 			}
 			TDEBUG_END("read");
 
-			if((*i)->state == LOADED){
+			if(((*i)->state & LOADED) && ((*i)->state & SLOWLOADED)){
 				/* We are done with the format's methods */
 				(*i)->fmt->close(*i);
 			}
 
+			(*i)->state &= LOADED | SLOWLOADED;
+
 			/* state should be set by format */
-			assert((*i)->state == LOADED || (*i)->state == FASTLOADED);
+			assert((*i)->state & LOADED);
+			return 1;
 		}else if(width && height){
-			if(dstate == SCALED || dstate == FASTSCALED2 || dstate == FASTSCALED){
-				(*i)->ximg = getimage(*i, width, height, dstate != SCALED);
-				(*i)->state = dstate;
-				dstate++; /* Always draw after rendering */
+			if((state & LOADED) && !(state & SCALED)){
+				backend_prepare(*i, width, height, !!(state & SCALED));
+				(*i)->state &= LOADED | SLOWLOADED | SCALED | SLOWSCALED;
+
+				/* state should be set by backend */
+				assert((*i)->state & SCALED);
+
+				/* state should not be drawn so that we will draw later (also assures correct return value) */
+				assert(!((*i)->state & DRAWN));
 			}
 		}
-		if(dstate == DRAWN || dstate == FASTDRAWN || dstate == FASTDRAWN2){
-			assert((*i)->ximg);
-			drawimage((*i)->ximg, width, height);
-			(*i)->state = dstate;
+		if(((*i)->state & SCALED) && !(state & DRAWN)){
+			backend_draw(*i, width, height);
+			(*i)->state |= DRAWN;
+			return 1;
 		}
 	}
-}
-
-void run(){
-	int xfd;
-	xfd = ConnectionNumber(display);
-	fd_set fds;
-	struct timeval tv0 = {0, 0};
-	struct timeval *tv = &tv0;
-	int maxfd = xfd > ctlfd ? xfd : ctlfd;
-
-	for(;;){
-		FD_ZERO(&fds);
-		FD_SET(xfd, &fds);
-		if(mode == MODE_CTL)
-			FD_SET(ctlfd, &fds); /* STDIN */
-		int ret = select(maxfd+1, &fds, NULL, NULL, tv);
-		if(ret == -1){
-			perror("select failed\n");
-		}
-		if(FD_ISSET(ctlfd, &fds)){
-			assert(mode == MODE_CTL);
-			size_t slen = 0;
-			ssize_t read;
-			if(images[0]){
-				free(images[0]);
-			}
-			freeimage(curimg);
-			curimg = NULL;
-			images[0] = NULL;
-			if((read = getline(images, &slen, stdin)) == -1){
-				exit(EXIT_SUCCESS);
-			}
-			images[0][read-1] = '\0';
-			tv = &tv0;
-		}
-		if(XPending(display)){
-			tv = &tv0;
-			XEvent event;
-			do{
-				XNextEvent(display, &event);
-				handleevent(&event);
-			}while(XPending(display));
-		}else if(ret == 0){
-			if(mode == MODE_CTL && images[0] == NULL){
-				tv = NULL;
-			}else if(!curimg || curimg->state != DRAWN){
-				doredraw(&curimg);
-			//}else if(!nextimg || nextimg->state != DRAWN){
-			}else{
-				/* If we get here  everything has been drawn in full or we need more input to continue */
-				tv = NULL;
-			}
-		}
-	}
+	return 0;
 }
 
 void readlist(FILE *f){
@@ -310,6 +225,41 @@ void readlist(FILE *f){
 	if(!imageslen){
 		fprintf(stderr, "No images to view\n");
 		exit(EXIT_FAILURE);
+	}
+}
+
+int setup_fds(fd_set *fds){
+	FD_ZERO(fds);
+	if(mode == MODE_CTL)
+		FD_SET(ctlfd, fds); /* STDIN */
+	return ctlfd;
+}
+
+int process_fds(fd_set *fds){
+	if(FD_ISSET(ctlfd, fds)){
+		assert(mode == MODE_CTL);
+		size_t slen = 0;
+		ssize_t read;
+		if(images[0]){
+			free(images[0]);
+		}
+		freeimage(curimg);
+		curimg = NULL;
+		images[0] = NULL;
+		if((read = getline(images, &slen, stdin)) == -1){
+			exit(EXIT_SUCCESS);
+		}
+		images[0][read-1] = '\0';
+		return 1;
+	}
+	return 0;
+}
+
+int process_idle(){
+	if(mode == MODE_CTL && images[0] == NULL){
+		return 0;
+	}else{
+		return doredraw(&curimg);
 	}
 }
 
@@ -346,8 +296,8 @@ int main(int argc, char *argv[]){
 		imageslen = argc-1;
 		imageidx = 0;
 	}
-	xinit();
-	run();
+	backend_init();
+	backend_run();
 
 	return 0;
 }

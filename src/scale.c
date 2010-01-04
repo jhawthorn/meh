@@ -65,7 +65,7 @@ static void superscale(struct image *img, unsigned int width, unsigned int heigh
 	}
 
 	unsigned int y0;
-	int * __restrict__ dest;
+	unsigned int * __restrict__ dest;
 	for(y = 0; y < img->bufheight;){
 		unsigned int ydiv = divy[y * height / img->bufheight];
 		char * __restrict__ ydest = &newBuf[bytesperline * (y * height / img->bufheight)];

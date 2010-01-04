@@ -172,7 +172,7 @@ int bmp_read(struct image *img){
 
 	free(row);
 
-	img->state = LOADED;
+	img->state |= LOADED | SLOWLOADED;
 
 	return 0;
 }

@@ -79,7 +79,7 @@ static int gif_read(struct image *img){
 		img->buf[j++] = colormap[idx].Blue;
 	}
 
-	img->state = LOADED;
+	img->state |= LOADED | SLOWLOADED;
 
 	return 0;
 }

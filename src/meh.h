@@ -1,7 +1,7 @@
+#ifndef MEH_H
+#define MEH_H MEH_H
 
 #include <stdio.h>
-
-#include "X11/Xlib.h"
 
 struct image;
 
@@ -13,16 +13,12 @@ struct imageformat{
 };
 
 typedef enum{
-	NONE,
-	FASTLOADED,
-	FASTSCALED,
-	FASTDRAWN,
-	LOADED,
-	FASTSCALED2,
-	FASTDRAWN2,
-	SCALED,
-	DRAWN,
-	ERROR
+	NONE = 0,
+	LOADED = 1,
+	SLOWLOADED = 2,
+	SCALED = 4,
+	SLOWSCALED = 8,
+	DRAWN = 16
 } imgstate;
 
 struct image{
@@ -30,20 +26,29 @@ struct image{
 	unsigned int bufwidth, bufheight;
 	struct imageformat *fmt;
 	imgstate state;
-	XImage *ximg;
+	void *backend;
 };
 
 
-/* scale */
-void scale(struct image *img, unsigned int width, unsigned int height, unsigned int bytesperline, char* __restrict__ newBuf);
-void nearestscale(struct image *img, unsigned int width, unsigned int height, unsigned int bytesperline, char* __restrict__ newBuf);
+/* backend */
+void backend_init();
+void backend_free(struct image *img);
+void backend_setaspect(unsigned int w, unsigned int h);
+void backend_prepare(struct image *img, unsigned int width, unsigned int height, int fast);
+void backend_draw(struct image *img, unsigned int width, unsigned int height);
+void backend_run();
 
-/* XLib */
-void setaspect(unsigned int w, unsigned int h);
-void xinit();
-void drawimage(XImage *ximg, unsigned int width, unsigned int height);
-XImage *getimage(struct image *img, unsigned int width, unsigned int height, int fast);
-void freeXImg(XImage *ximg);
+/* key actions for backend */
+void key_reload();
+void key_next();
+void key_prev();
+void key_quit();
+void key_action();
+
+/* callbacks from backend */
+int setup_fds(fd_set *fds);
+int process_fds(fd_set *fds);
+int process_idle();
 
 #ifdef TDEBUG
 #define TDEBUG_START \
@@ -66,5 +71,8 @@ extern struct imageformat bmp;
 extern struct imageformat netpbm;
 extern struct imageformat imagemagick;
 
+extern int width, height;
+extern struct image *curimg;
 
+#endif
 

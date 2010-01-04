@@ -1,9 +1,4 @@
 
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
@@ -11,18 +6,30 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "meh.h"
+#include "scale.h"
+
+struct data_t{
+	XImage *ximg;
+};
 
 /* Globals */
 Display *display;
-int screen;
-Window window;
-GC gc;
+static int screen;
+static Window window;
+static GC gc;
 
-int xshm = 0;
+static int xfd;
 
-XShmSegmentInfo *shminfo;
-XImage *ximage(struct image *img, unsigned int width, unsigned int height, int fast){
+static int xshm = 0;
+
+static XShmSegmentInfo *shminfo;
+static XImage *ximage(struct image *img, unsigned int width, unsigned int height, int fast){
 	int depth;
 	XImage *ximg = NULL;
 	Visual *vis;
@@ -79,15 +86,25 @@ XImage *ximage(struct image *img, unsigned int width, unsigned int height, int f
 	return ximg;
 }
 
-XImage *getimage(struct image *img, unsigned int width, unsigned int height, int fast){
+void backend_prepare(struct image *img, unsigned int width, unsigned int height, int fast){
+	struct data_t *data = img->backend = malloc(sizeof (struct data_t));
 	if(width * img->bufheight > height * img->bufwidth){
-		return ximage(img, img->bufwidth * height / img->bufheight, height, fast);
+		data->ximg = ximage(img, img->bufwidth * height / img->bufheight, height, fast);
 	}else{
-		return ximage(img, width, img->bufheight * width / img->bufwidth, fast);
+		data->ximg = ximage(img, width, img->bufheight * width / img->bufwidth, fast);
 	}
+
+	img->state |= SCALED;
+	if(!fast)
+		img->state |= SLOWSCALED;
 }
 
-void drawimage(XImage *ximg, unsigned int width, unsigned int height){
+void backend_draw(struct image *img, unsigned int width, unsigned int height){
+	assert(((struct data_t *)img->backend));
+	assert(((struct data_t *)img->backend)->ximg);
+
+	XImage *ximg = ((struct data_t *)img->backend)->ximg;
+
 	XRectangle rects[2];
 	int yoffset, xoffset;
 	xoffset = (width - ximg->width) / 2;
@@ -117,20 +134,27 @@ void drawimage(XImage *ximg, unsigned int width, unsigned int height){
 	XFlush(display);
 }
 
-void freeXImg(XImage *ximg){
-	if(xshm){
-		XShmDetach(display, shminfo);
-		XDestroyImage(ximg);
-		shmdt(shminfo->shmaddr);
-		shmctl(shminfo->shmid, IPC_RMID, 0);
-		free(shminfo);
-	}else{
-		XDestroyImage(ximg);
+void backend_free(struct image *img){
+	assert(img);
+	if(img->backend){
+		XImage *ximg = ((struct data_t *)img->backend)->ximg;
+		if(ximg){
+			if(xshm){
+				XShmDetach(display, shminfo);
+				XDestroyImage(ximg);
+				shmdt(shminfo->shmaddr);
+				shmctl(shminfo->shmid, IPC_RMID, 0);
+				free(shminfo);
+			}else{
+				XDestroyImage(ximg);
+			}
+		}
+		img->backend = NULL;
 	}
 }
 
 
-void setaspect(unsigned int w, unsigned int h){
+void backend_setaspect(unsigned int w, unsigned int h){
 	XSizeHints *hints = XAllocSizeHints();
 	//hints->flags = PAspect;
 	hints->flags = 0;
@@ -142,19 +166,20 @@ void setaspect(unsigned int w, unsigned int h){
 }
 
 /* Alt-F4 silent. Keeps people happy */
-int xquit(Display *d){
+static int xquit(Display *d){
 	(void)d;
 	exit(EXIT_SUCCESS);
 	return 0;
 }
 
-void xinit(){
+void backend_init(){
 	display = XOpenDisplay (NULL);
+	xfd = ConnectionNumber(display);
 	assert(display);
 	screen = DefaultScreen(display);
 
 	window = XCreateWindow(display, DefaultRootWindow(display), 0, 0, 640, 480, 0, DefaultDepth(display, screen), InputOutput, CopyFromParent, 0, NULL);
-	setaspect(1, 1);
+	backend_setaspect(1, 1);
 	gc = XCreateGC(display, window, 0, NULL);
 
 	XMapRaised(display, window);
@@ -164,5 +189,86 @@ void xinit(){
 	XFlush(display);
 }
 
+void handlekeypress(XEvent *event){
+	KeySym key = XLookupKeysym(&event->xkey, 0);
+	switch(key){
+		case XK_Escape:
+		case XK_q:
+			key_quit();
+			break;
+		case XK_Return:
+			key_action();
+			break;
+		case XK_j:
+			key_next();
+			break;
+		case XK_k:
+			key_prev();
+			break;
+		case XK_r:
+			key_reload();
+			break;
+	}
+}
+
+
+void handleevent(XEvent *event){
+	switch(event->type){
+		case ConfigureNotify:
+			if(width != event->xconfigure.width || height != event->xconfigure.height){
+				width = event->xconfigure.width;
+				height = event->xconfigure.height;
+				if(curimg){
+					backend_free(curimg);
+					curimg->state &= ~(DRAWN | SCALED | SLOWSCALED);
+
+					/* Some window managers need reminding */
+					backend_setaspect(curimg->bufwidth, curimg->bufheight);
+				}
+			}
+			break;
+		case Expose:
+			if(curimg){
+				curimg->state &= ~DRAWN;
+			}
+			break;
+		case KeyPress:
+			handlekeypress(event);
+			break;
+	}
+}
+
+void backend_run(){
+	fd_set fds;
+	struct timeval tv0 = {0, 0};
+	struct timeval *tv = &tv0;
+
+	for(;;){
+		int maxfd = setup_fds(&fds);
+		FD_SET(xfd, &fds);
+		if(xfd > maxfd)
+			maxfd = xfd;
+		int ret = select(maxfd+1, &fds, NULL, NULL, tv);
+		if(ret == -1){
+			perror("select failed\n");
+		}
+		if(process_fds(&fds)){
+			tv = &tv0;
+		}
+		if(XPending(display)){
+			tv = &tv0;
+			XEvent event;
+			do{
+				XNextEvent(display, &event);
+				handleevent(&event);
+			}while(XPending(display));
+		}else if(ret == 0){
+			if(!process_idle()){
+				/* If we get here everything has been drawn in full or we need more input to continue */
+				tv = NULL;
+			}
+		}
+	}
+}
 
 
