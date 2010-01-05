@@ -13,10 +13,10 @@
 #define MODE_NORM 0
 #define MODE_LIST 1
 #define MODE_CTL 2
-int mode;
+static int mode;
 
 /* Supported Formats */
-struct imageformat *formats[] = {
+static struct imageformat *formats[] = {
 	&libjpeg,
 	&bmp,
 	&libpng,
@@ -27,7 +27,7 @@ struct imageformat *formats[] = {
 };
 
 
-void usage(){
+static void usage(){
 	printf("USAGE: meh [FILE1 [FILE2 [...]]]\n");
 	printf("       meh -list [LISTFILE]      : Treat file as list of images. Defaults to stdin.\n");
 	printf("       meh -ctl                  : Display files as they are received on stdin\n");
@@ -35,7 +35,7 @@ void usage(){
 	exit(EXIT_FAILURE);
 }
 
-struct image *newimage(FILE *f){
+static struct image *newimage(FILE *f){
 	struct image *img = NULL;
 	struct imageformat **fmt = formats;
 	for(fmt = formats; *fmt; fmt++){
@@ -48,12 +48,8 @@ struct image *newimage(FILE *f){
 	return NULL;
 }
 
-struct image *imgopen(FILE *f){
-	return newimage(f);
-}
-
 /* For MODE_CTL */
-int ctlfd;
+static int ctlfd;
 
 static int imageslen;
 static int imageidx;
@@ -62,7 +58,7 @@ static char **images;
 int width = 0, height = 0;
 struct image *curimg = NULL;
 
-void freeimage(struct image *img){
+static void freeimage(struct image *img){
 	if(img){
 		backend_free(img);
 		if(img->buf)
@@ -71,14 +67,14 @@ void freeimage(struct image *img){
 	}
 }
 
-void nextimage(){
+static void nextimage(){
 	if(++imageidx == imageslen)
 		imageidx = 0;
 	freeimage(curimg);
 	curimg = NULL;
 }
 
-void previmage(){
+static void previmage(){
 	if(--imageidx < 0)
 		imageidx = imageslen - 1;
 	freeimage(curimg);
@@ -92,16 +88,12 @@ void key_reload(){
 	curimg = NULL;
 }
 void key_next(){
-	if(mode != MODE_CTL){
-		direction = nextimage;
-		direction();
-	}
+	if(mode != MODE_CTL)
+		(direction = nextimage)();
 }
 void key_prev(){
-	if(mode != MODE_CTL){
-		direction = previmage;
-		direction();
-	}
+	if(mode != MODE_CTL)
+		(direction = previmage)();
 }
 void key_quit(){
 	exit(EXIT_SUCCESS);
@@ -116,7 +108,7 @@ struct image *imageopen2(char *filename){
 	struct image *i;
 	FILE *f;
 	if((f = fopen(filename, "rb"))){
-		if((i = imgopen(f))){
+		if((i = newimage(f))){
 			return i;
 		}
 		else
@@ -202,7 +194,7 @@ static int doredraw(struct image **i){
 	return 0;
 }
 
-void readlist(FILE *f){
+static void readlist(FILE *f){
 	int lsize = 16;
 	imageslen = 0;
 	images = NULL;

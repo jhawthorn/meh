@@ -19,7 +19,7 @@ struct data_t{
 };
 
 /* Globals */
-Display *display;
+static Display *display;
 static int screen;
 static Window window;
 static GC gc;
