@@ -58,6 +58,9 @@ static char **images;
 int width = 0, height = 0;
 struct image *curimg = NULL;
 
+struct image *nextimg = NULL;
+struct image *previmg = NULL;
+
 static void freeimage(struct image *img){
 	if(img){
 		backend_free(img);
@@ -67,33 +70,47 @@ static void freeimage(struct image *img){
 	}
 }
 
-static void nextimage(){
-	if(++imageidx == imageslen)
-		imageidx = 0;
-	freeimage(curimg);
-	curimg = NULL;
+static int incidx(int i){
+	return ++i >= imageslen ? 0 : i;
 }
 
-static void previmage(){
-	if(--imageidx < 0)
-		imageidx = imageslen - 1;
-	freeimage(curimg);
-	curimg = NULL;
+static int decidx(int i){
+	return --i < 0 ? imageslen - 1 : i;
 }
 
-static void (*direction)() = nextimage;
+static int (*direction)(int) = incidx;
 
 void key_reload(){
 	freeimage(curimg);
 	curimg = NULL;
 }
 void key_next(){
-	if(mode != MODE_CTL)
-		(direction = nextimage)();
+	if(mode != MODE_CTL){
+		curimg->state &= LOADED | SLOWLOADED;
+		freeimage(previmg);
+		previmg = curimg;
+		curimg = nextimg;
+		nextimg = NULL;
+		if(curimg){
+			imageidx = curimg->idx;
+		}else{
+			imageidx = (direction = incidx)(imageidx);
+		}
+	}
 }
 void key_prev(){
-	if(mode != MODE_CTL)
-		(direction = previmage)();
+	if(mode != MODE_CTL){
+		curimg->state &= LOADED | SLOWLOADED;
+		freeimage(nextimg);
+		nextimg = curimg;
+		curimg = previmg;
+		previmg = NULL;
+		if(curimg){
+			imageidx = curimg->idx;
+		}else{
+			imageidx = (direction = decidx)(imageidx);
+		}
+	}
 }
 void key_quit(){
 	exit(EXIT_SUCCESS);
@@ -119,7 +136,7 @@ struct image *imageopen2(char *filename){
 	return NULL;
 }
 
-static int doredraw(struct image **i){
+static int doredraw(struct image **i, int idx, int (*dir)(int), int dstates){
 	if(!*i){
 		if(mode == MODE_CTL){
 			if(images[0] == NULL)
@@ -129,19 +146,20 @@ static int doredraw(struct image **i){
 				return 0;
 			}
 		}else{
-			int firstimg = imageidx;
+			int firstimg = idx;
 			while(!*i){
-				if((*i = imageopen2(images[imageidx]))){
+				if((*i = imageopen2(images[idx]))){
 					break;
 				}
-				direction();
-				if(imageidx == firstimg){
+				idx = dir(idx);
+				if(idx == firstimg){
 					fprintf(stderr, "No valid images to view\n");
 					exit(EXIT_FAILURE);
 				}
 			}
 		}
 
+		(*i)->idx = idx;
 		(*i)->buf = NULL;
 		(*i)->state = NONE;
 		return 1;
@@ -174,7 +192,7 @@ static int doredraw(struct image **i){
 			assert((*i)->state & LOADED);
 			return 1;
 		}else if(width && height){
-			if((state & LOADED) && !(state & SCALED)){
+			if((dstates & SCALED) && (state & LOADED) && !(state & SCALED)){
 				backend_prepare(*i, width, height, !!(state & SCALED));
 				(*i)->state &= LOADED | SLOWLOADED | SCALED | SLOWSCALED;
 
@@ -185,7 +203,7 @@ static int doredraw(struct image **i){
 				assert(!((*i)->state & DRAWN));
 			}
 		}
-		if(((*i)->state & SCALED) && !(state & DRAWN)){
+		if((dstates & DRAWN) && ((*i)->state & SCALED) && !(state & DRAWN)){
 			backend_draw(*i, width, height);
 			(*i)->state |= DRAWN;
 			return 1;
@@ -251,7 +269,15 @@ int process_idle(){
 	if(mode == MODE_CTL && images[0] == NULL){
 		return 0;
 	}else{
-		return doredraw(&curimg);
+		int ret = doredraw(&curimg, imageidx, direction, ~0);
+		imageidx = curimg->idx;
+		if(!ret){
+			ret = doredraw(&nextimg, incidx(imageidx), incidx, LOADED | SLOWLOADED);
+		}
+		if(!ret){
+			ret = doredraw(&previmg, decidx(imageidx), decidx, LOADED | SLOWLOADED);
+		}
+		return ret;
 	}
 }
 

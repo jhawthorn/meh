@@ -26,6 +26,7 @@ struct image{
 	unsigned int bufwidth, bufheight;
 	struct imageformat *fmt;
 	imgstate state;
+	int idx;
 	void *backend;
 };
 
