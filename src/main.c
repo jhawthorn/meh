@@ -86,7 +86,8 @@ void key_reload(){
 }
 void key_next(){
 	if(mode != MODE_CTL){
-		curimg->state &= LOADED | SLOWLOADED;
+		if(curimg)
+			curimg->state &= LOADED | SLOWLOADED;
 		freeimage(previmg);
 		previmg = curimg;
 		curimg = nextimg;
@@ -100,7 +101,8 @@ void key_next(){
 }
 void key_prev(){
 	if(mode != MODE_CTL){
-		curimg->state &= LOADED | SLOWLOADED;
+		if(curimg)
+			curimg->state &= LOADED | SLOWLOADED;
 		freeimage(nextimg);
 		nextimg = curimg;
 		curimg = previmg;
