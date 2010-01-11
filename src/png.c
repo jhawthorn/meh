@@ -85,7 +85,16 @@ int png_read(struct image *img){
 			png_set_strip_16(p->png_ptr);
 		if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
 			png_set_gray_to_rgb(p->png_ptr);
-		png_set_strip_alpha(p->png_ptr);
+		//png_set_strip_alpha(p->png_ptr);
+
+		png_color_16 my_background = {.red = 0xff, .green = 0xff, .blue = 0xff};
+		png_color_16p image_background;
+
+		if(png_get_bKGD(p->png_ptr, p->info_ptr, &image_background))
+			png_set_background(p->png_ptr, image_background, PNG_BACKGROUND_GAMMA_FILE, 1, 1.0);
+		else
+			png_set_background(p->png_ptr, &my_background, PNG_BACKGROUND_GAMMA_SCREEN, 2, 1.0);
+
 		if(png_get_interlace_type(p->png_ptr, p->info_ptr) == PNG_INTERLACE_ADAM7)
 			p->numpasses = png_set_interlace_handling(p->png_ptr);
 		else
