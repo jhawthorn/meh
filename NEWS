@@ -1,4 +1,5 @@
 
+meh 0.3 - Preliminary caching support. Improved responsiveness. PNG alpha support.
 meh 0.2 - Imagemagick support. netpbm support. Better downscaling. Bug fixes.
 meh 0.1 - First release. JPEG, PNG, GIF and BMP formats. XSHM support.
 
