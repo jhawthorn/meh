@@ -16,6 +16,7 @@
 
 struct data_t{
 	XImage *ximg;
+	XShmSegmentInfo *shminfo;
 };
 
 /* Globals */
@@ -28,10 +29,10 @@ static int xfd;
 
 static int xshm = 0;
 
-static XShmSegmentInfo *shminfo;
-static XImage *ximage(struct image *img, unsigned int width, unsigned int height, int fast){
+static void ximage(struct data_t *data, struct image *img, unsigned int width, unsigned int height, int fast){
 	int depth;
 	XImage *ximg = NULL;
+	XShmSegmentInfo *shminfo = NULL;
 	Visual *vis;
 
 	depth = DefaultDepth(display, screen);
@@ -63,8 +64,7 @@ static XImage *ximage(struct image *img, unsigned int width, unsigned int height
 				fprintf(stderr, "XShm problems, falling back to to XImage\n");
 				xshm = 0;
 			}
-		}
-		if(!xshm){
+		}else{
 			ximg = XCreateImage(display, 
 				CopyFromParent, depth, 
 				ZPixmap, 0, 
@@ -80,18 +80,18 @@ static XImage *ximage(struct image *img, unsigned int width, unsigned int height
 		/* TODO other depths */
 		fprintf(stderr, "This program does not yet support display depths <24.\n");
 		exit(1);
-		return NULL;				
 	}
 
-	return ximg;
+	data->ximg = ximg;
+	data->shminfo = shminfo;
 }
 
 void backend_prepare(struct image *img, unsigned int width, unsigned int height, int fast){
 	struct data_t *data = img->backend = malloc(sizeof (struct data_t));
 	if(width * img->bufheight > height * img->bufwidth){
-		data->ximg = ximage(img, img->bufwidth * height / img->bufheight, height, fast);
+		ximage(data, img, img->bufwidth * height / img->bufheight, height, fast);
 	}else{
-		data->ximg = ximage(img, width, img->bufheight * width / img->bufwidth, fast);
+		ximage(data, img, width, img->bufheight * width / img->bufwidth, fast);
 	}
 
 	img->state |= SCALED;
@@ -137,14 +137,15 @@ void backend_draw(struct image *img, unsigned int width, unsigned int height){
 void backend_free(struct image *img){
 	assert(img);
 	if(img->backend){
-		XImage *ximg = ((struct data_t *)img->backend)->ximg;
+		struct data_t *data = (struct data_t *)img->backend;
+		XImage *ximg = data->ximg;
 		if(ximg){
-			if(xshm){
-				XShmDetach(display, shminfo);
+			if(xshm && data->shminfo){
+				XShmDetach(display, data->shminfo);
 				XDestroyImage(ximg);
-				shmdt(shminfo->shmaddr);
-				shmctl(shminfo->shmid, IPC_RMID, 0);
-				free(shminfo);
+				shmdt(data->shminfo->shmaddr);
+				shmctl(data->shminfo->shmid, IPC_RMID, 0);
+				free(data->shminfo);
 			}else{
 				XDestroyImage(ximg);
 			}
