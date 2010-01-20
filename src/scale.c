@@ -46,8 +46,8 @@ static void superscale(struct image *img, unsigned int width, unsigned int heigh
 
 	TDEBUG_START
 
-	unsigned int divx[bytesperline];
-	unsigned int divy[bytesperline];
+	unsigned int divx[width];
+	unsigned int divy[height];
 	memset(divx, 0, sizeof divx);
 	memset(divy, 0, sizeof divy);
 	for(x = 0; x < img->bufwidth; x++){

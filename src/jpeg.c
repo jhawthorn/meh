@@ -60,6 +60,10 @@ static struct image *jpeg_open(FILE *f){
 void jpeg_prep(struct image *img){
 	struct jpeg_t *j = (struct jpeg_t *)img;
 	
+	/* We've previously loaded this image, clean that up*/
+	if(img->state & LOADED)
+		jpeg_destroy_decompress(&j->cinfo);
+
 	jpeg_create_decompress(&j->cinfo);
 	rewind(j->f);
 	jpeg_stdio_src(&j->cinfo, j->f);

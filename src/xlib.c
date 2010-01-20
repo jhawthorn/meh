@@ -72,7 +72,7 @@ static void ximage(struct data_t *data, struct image *img, unsigned int width, u
 				width, height,
 				32, 0
 			);
-			ximg->data  = malloc(ximg->bytes_per_line * ximg->height);
+			ximg->data = malloc(ximg->bytes_per_line * ximg->height);
 			XInitImage(ximg);
 		}
 		(fast ? nearestscale : scale)(img, ximg->width, ximg->height, ximg->bytes_per_line, ximg->data);
