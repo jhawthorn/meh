@@ -17,7 +17,7 @@ static int ispng(FILE *f){
 	unsigned char buf[8];
 	if(fread(buf, 1, 8, f) != 8)
 		return 0;
-	return png_check_sig(buf, 8);
+	return !png_sig_cmp(buf, 1, 8);
 }
 
 struct image *png_open(FILE *f){
