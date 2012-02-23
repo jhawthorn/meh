@@ -201,9 +201,15 @@ void handlekeypress(XEvent *event){
 			key_action();
 			break;
 		case XK_j:
+		case XK_l:
+		case XK_Right:
+		case XK_Down:
 			key_next();
 			break;
 		case XK_k:
+		case XK_h:
+		case XK_Left:
+		case XK_Up:
 			key_prev();
 			break;
 		case XK_r:
