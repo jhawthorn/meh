@@ -23,7 +23,7 @@ meh: $(OBJFILES)
 test: $(TESTTARGET)
 	./$(TESTTARGET)
 
-test/test: test/test.o $(filter-out src/main.o, $(OBJFILES))
+test/test: test/test.o $(filter-out src/main.o src/xlib.o, $(OBJFILES))
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 -include $(DEPFILES)
