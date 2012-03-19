@@ -3,6 +3,7 @@
 #include "sys/time.h"
 
 #include "../src/meh.h"
+#include "../src/scale.h"
 
 #define TESTRUNS 20
 #define STARTTEST(name) int test_##name(){ testname = #name; testsrun++; do
