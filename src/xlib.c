@@ -33,10 +33,8 @@ static void ximage(struct data_t *data, struct image *img, unsigned int width, u
 	int depth;
 	XImage *ximg = NULL;
 	XShmSegmentInfo *shminfo = NULL;
-	Visual *vis;
 
 	depth = DefaultDepth(display, screen);
-	vis = DefaultVisual(display, screen);
 
 	if(depth >= 24){
 		if(xshm){
