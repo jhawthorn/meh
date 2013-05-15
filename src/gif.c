@@ -56,10 +56,8 @@ static int gif_read(struct image *img){
 	GifColorType *colormap;
 	SavedImage *s;
 
-	if(DGifSlurp(g->gif) == GIF_ERROR){
-		PrintGifError();
-		return 1;
-	}
+	if(DGifSlurp(g->gif) == GIF_ERROR)
+		goto error;
 
 	s = &g->gif->SavedImages[0];
 
@@ -67,10 +65,8 @@ static int gif_read(struct image *img){
 		colormap = s->ImageDesc.ColorMap->Colors;
 	else if(g->gif->SColorMap)
 		colormap = g->gif->SColorMap->Colors;
-	else{
-		PrintGifError();
-		return 1;
-	}
+	else
+		goto error;
 
 	for(i = 0; i < img->bufwidth * img->bufheight; i++){
 		unsigned char idx = s->RasterBits[i];
@@ -82,6 +78,13 @@ static int gif_read(struct image *img){
 	img->state |= LOADED | SLOWLOADED;
 
 	return 0;
+error:
+#if defined(GIFLIB_MAJOR) && defined(GIFLIB_MINOR) && ((GIFLIB_MAJOR == 4 && GIFLIB_MINOR >= 2) || GIFLIB_MAJOR > 4)
+	fprintf(stderr, "%s\n", GifErrorString());
+#else
+	PrintGifError();
+#endif
+	return 1;
 }
 
 void gif_close(struct image *img){
