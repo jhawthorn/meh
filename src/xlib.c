@@ -213,6 +213,10 @@ void handlekeypress(XEvent *event){
 		case XK_r:
 			key_reload();
 			break;
+		case XK_0:
+			if(curimg)
+				XResizeWindow(display, window, curimg->bufwidth, curimg->bufheight);
+			break;
 	}
 }
 
