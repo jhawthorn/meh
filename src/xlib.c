@@ -17,6 +17,7 @@
 struct data_t{
 	XImage *ximg;
 	XShmSegmentInfo *shminfo;
+	Pixmap shmpix;
 };
 
 /* Globals */
@@ -64,6 +65,12 @@ static void ximage(struct data_t *data, struct image *img, unsigned int width, u
 				fprintf(stderr, "XShm problems, falling back to to XImage\n");
 				xshm = 0;
 			}
+			if(xshm & (1 << 1)){
+				data->shmpix =
+					XShmCreatePixmap(display, window,
+							 ximg->data, shminfo,
+							 width, height, depth);
+			}
 		}else{
 			ximg = XCreateImage(display, 
 				CopyFromParent, depth, 
@@ -100,10 +107,11 @@ void backend_prepare(struct image *img, unsigned int width, unsigned int height,
 }
 
 void backend_draw(struct image *img, unsigned int width, unsigned int height){
-	assert(((struct data_t *)img->backend));
-	assert(((struct data_t *)img->backend)->ximg);
+	struct data_t *data = img->backend;
+	assert(data);
+	assert(data->ximg);
 
-	XImage *ximg = ((struct data_t *)img->backend)->ximg;
+	XImage *ximg = data->ximg;
 
 	XRectangle rects[2];
 	int yoffset, xoffset;
@@ -126,7 +134,12 @@ void backend_draw(struct image *img, unsigned int width, unsigned int height){
 		}
 		XFillRectangles(display, window, gc, rects, 2);
 	}
-	if(xshm){
+	if(data->shmpix){
+		XCopyArea(display, data->shmpix, window, gc,
+			  0, 0,
+			  ximg->width, ximg->height,
+			  xoffset, yoffset);
+	} else if(xshm){
 		XShmPutImage(display, window, gc, ximg, 0, 0, xoffset, yoffset, ximg->width, ximg->height, False);
 	}else{
 		XPutImage(display, window, gc, ximg, 0, 0, xoffset, yoffset, ximg->width, ximg->height);
@@ -139,6 +152,8 @@ void backend_free(struct image *img){
 	if(img->backend){
 		struct data_t *data = (struct data_t *)img->backend;
 		XImage *ximg = data->ximg;
+		if (data->shmpix)
+			XFreePixmap(display, data->shmpix);
 		if(ximg){
 			if(xshm && data->shminfo){
 				XShmDetach(display, data->shminfo);
@@ -230,6 +245,8 @@ can_use_shm(Display *dpy)
 }
 
 void backend_init(){
+	XGCValues gcv;
+
 	display = XOpenDisplay (NULL);
 	xfd = ConnectionNumber(display);
 	assert(display);
@@ -237,7 +254,9 @@ void backend_init(){
 
 	window = XCreateWindow(display, DefaultRootWindow(display), 0, 0, 640, 480, 0, DefaultDepth(display, screen), InputOutput, CopyFromParent, 0, NULL);
 	backend_setaspect(1, 1);
-	gc = XCreateGC(display, window, 0, NULL);
+
+	gcv.graphics_exposures = False;
+	gc = XCreateGC(display, window, GCGraphicsExposures, &gcv);
 
 	XMapRaised(display, window);
 	XSelectInput(display, window, StructureNotifyMask | ExposureMask | KeyPressMask);
