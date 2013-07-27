@@ -173,6 +173,62 @@ static int xquit(Display *d){
 	return 0;
 }
 
+static int _x_error_occurred;
+
+static int
+_check_error_handler(Display     *display,
+		     XErrorEvent *event)
+{
+    _x_error_occurred = 1;
+    return False; /* ignored */
+}
+
+static int
+can_use_shm(Display *dpy)
+{
+    XShmSegmentInfo info;
+    int (*old_handler)(Display *display, XErrorEvent *event);
+    Status success;
+    int major, minor, has_pixmap;
+
+    if (!XShmQueryExtension(dpy))
+	return 0;
+
+    XShmQueryVersion(dpy, &major, &minor, &has_pixmap);
+
+    info.shmid = shmget(IPC_PRIVATE, 0x1000, IPC_CREAT | 0600);
+    if (info.shmid == -1)
+	return 0;
+
+    info.readOnly = 0;
+    info.shmaddr = shmat(info.shmid, NULL, 0);
+    if (info.shmaddr == (char *) -1) {
+	shmctl(info.shmid, IPC_RMID, NULL);
+	return 0;
+    }
+
+    XLockDisplay (dpy);
+    XSync(dpy, False);
+    old_handler = XSetErrorHandler (_check_error_handler);
+
+    _x_error_occurred = 0;
+    success = XShmAttach(dpy, &info);
+    if (success)
+	XShmDetach(dpy, &info);
+
+    XSync(dpy, False);
+    XSetErrorHandler(old_handler);
+    XUnlockDisplay(dpy);
+
+    shmctl(info.shmid, IPC_RMID, NULL);
+    shmdt(info.shmaddr);
+
+    if (!success || _x_error_occurred)
+	    return 0;
+
+    return !!has_pixmap << 1 | 1;
+}
+
 void backend_init(){
 	display = XOpenDisplay (NULL);
 	xfd = ConnectionNumber(display);
@@ -188,6 +244,8 @@ void backend_init(){
 	XFlush(display);
 	XSetIOErrorHandler(xquit);
 	XFlush(display);
+
+	xshm = can_use_shm(display);
 }
 
 void handlekeypress(XEvent *event){
