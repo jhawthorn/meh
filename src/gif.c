@@ -32,7 +32,11 @@ static struct image *gif_open(FILE *f){
 	/* HACK HACK HACK */
 	rewind(f);
 	lseek(fileno(f), 0L, SEEK_SET);
+#if defined(GIFLIB_MAJOR) && GIFLIB_MAJOR >= 5
+	if(!(gif = DGifOpenFileHandle(fileno(f), NULL))){
+#else
 	if(!(gif = DGifOpenFileHandle(fileno(f)))){
+#endif
 		/* HACK AND HOPE */
 		rewind(f);
 		lseek(fileno(f), 0L, SEEK_SET);
@@ -55,8 +59,9 @@ static int gif_read(struct image *img){
 	struct gif_t *g = (struct gif_t *)img;
 	GifColorType *colormap;
 	SavedImage *s;
+	int ret;
 
-	if(DGifSlurp(g->gif) == GIF_ERROR)
+	if((ret = DGifSlurp(g->gif)) != GIF_OK)
 		goto error;
 
 	s = &g->gif->SavedImages[0];
@@ -79,8 +84,10 @@ static int gif_read(struct image *img){
 
 	return 0;
 error:
-#if defined(GIFLIB_MAJOR) && defined(GIFLIB_MINOR) && ((GIFLIB_MAJOR == 4 && GIFLIB_MINOR >= 2) || GIFLIB_MAJOR > 4)
-	fprintf(stderr, "%s\n", GifErrorString());
+#if defined(GIFLIB_MAJOR) && GIFLIB_MAJOR >= 5
+	fprintf(stderr, "GIFLIB: %s\n", GifErrorString(ret));
+#elif defined(GIFLIB_MAJOR) && defined(GIFLIB_MINOR) && ((GIFLIB_MAJOR == 4 && GIFLIB_MINOR >= 2) || GIFLIB_MAJOR > 4)
+	fprintf(stderr, "GIFLIB: %s\n", GifErrorString());
 #else
 	PrintGifError();
 #endif
