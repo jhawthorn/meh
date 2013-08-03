@@ -17,6 +17,7 @@
 struct data_t{
 	XImage *ximg;
 	XShmSegmentInfo *shminfo;
+	Pixmap shmpix;
 };
 
 /* Globals */
@@ -62,6 +63,12 @@ static void ximage(struct data_t *data, struct image *img, unsigned int width, u
 				fprintf(stderr, "XShm problems, falling back to to XImage\n");
 				xshm = 0;
 			}
+			if(xshm & (1 << 1)){
+				data->shmpix =
+					XShmCreatePixmap(display, window,
+							 ximg->data, shminfo,
+							 width, height, depth);
+			}
 		}else{
 			ximg = XCreateImage(display, 
 				CopyFromParent, depth, 
@@ -98,10 +105,11 @@ void backend_prepare(struct image *img, unsigned int width, unsigned int height,
 }
 
 void backend_draw(struct image *img, unsigned int width, unsigned int height){
-	assert(((struct data_t *)img->backend));
-	assert(((struct data_t *)img->backend)->ximg);
+	struct data_t *data = img->backend;
+	assert(data);
+	assert(data->ximg);
 
-	XImage *ximg = ((struct data_t *)img->backend)->ximg;
+	XImage *ximg = data->ximg;
 
 	XRectangle rects[2];
 	int yoffset, xoffset;
@@ -124,7 +132,12 @@ void backend_draw(struct image *img, unsigned int width, unsigned int height){
 		}
 		XFillRectangles(display, window, gc, rects, 2);
 	}
-	if(xshm){
+	if(data->shmpix){
+		XCopyArea(display, data->shmpix, window, gc,
+			  0, 0,
+			  ximg->width, ximg->height,
+			  xoffset, yoffset);
+	} else if(xshm){
 		XShmPutImage(display, window, gc, ximg, 0, 0, xoffset, yoffset, ximg->width, ximg->height, False);
 	}else{
 		XPutImage(display, window, gc, ximg, 0, 0, xoffset, yoffset, ximg->width, ximg->height);
@@ -137,6 +150,8 @@ void backend_free(struct image *img){
 	if(img->backend){
 		struct data_t *data = (struct data_t *)img->backend;
 		XImage *ximg = data->ximg;
+		if (data->shmpix)
+			XFreePixmap(display, data->shmpix);
 		if(ximg){
 			if(xshm && data->shminfo){
 				XShmDetach(display, data->shminfo);
@@ -171,7 +186,65 @@ static int xquit(Display *d){
 	return 0;
 }
 
+static int _x_error_occurred;
+
+static int
+_check_error_handler(Display     *display,
+		     XErrorEvent *event)
+{
+    _x_error_occurred = 1;
+    return False; /* ignored */
+}
+
+static int
+can_use_shm(Display *dpy)
+{
+    XShmSegmentInfo info;
+    int (*old_handler)(Display *display, XErrorEvent *event);
+    Status success;
+    int major, minor, has_pixmap;
+
+    if (!XShmQueryExtension(dpy))
+	return 0;
+
+    XShmQueryVersion(dpy, &major, &minor, &has_pixmap);
+
+    info.shmid = shmget(IPC_PRIVATE, 0x1000, IPC_CREAT | 0600);
+    if (info.shmid == -1)
+	return 0;
+
+    info.readOnly = 0;
+    info.shmaddr = shmat(info.shmid, NULL, 0);
+    if (info.shmaddr == (char *) -1) {
+	shmctl(info.shmid, IPC_RMID, NULL);
+	return 0;
+    }
+
+    XLockDisplay (dpy);
+    XSync(dpy, False);
+    old_handler = XSetErrorHandler (_check_error_handler);
+
+    _x_error_occurred = 0;
+    success = XShmAttach(dpy, &info);
+    if (success)
+	XShmDetach(dpy, &info);
+
+    XSync(dpy, False);
+    XSetErrorHandler(old_handler);
+    XUnlockDisplay(dpy);
+
+    shmctl(info.shmid, IPC_RMID, NULL);
+    shmdt(info.shmaddr);
+
+    if (!success || _x_error_occurred)
+	    return 0;
+
+    return !!has_pixmap << 1 | 1;
+}
+
 void backend_init(){
+	XGCValues gcv;
+
 	display = XOpenDisplay (NULL);
 	xfd = ConnectionNumber(display);
 	assert(display);
@@ -179,13 +252,17 @@ void backend_init(){
 
 	window = XCreateWindow(display, DefaultRootWindow(display), 0, 0, 640, 480, 0, DefaultDepth(display, screen), InputOutput, CopyFromParent, 0, NULL);
 	backend_setaspect(1, 1);
-	gc = XCreateGC(display, window, 0, NULL);
+
+	gcv.graphics_exposures = False;
+	gc = XCreateGC(display, window, GCGraphicsExposures, &gcv);
 
 	XMapRaised(display, window);
 	XSelectInput(display, window, StructureNotifyMask | ExposureMask | KeyPressMask);
 	XFlush(display);
 	XSetIOErrorHandler(xquit);
 	XFlush(display);
+
+	xshm = can_use_shm(display);
 }
 
 void handlekeypress(XEvent *event){
