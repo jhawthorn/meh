@@ -173,8 +173,8 @@ static int xquit(Display *d){
 
 void backend_init(){
 	display = XOpenDisplay (NULL);
-	xfd = ConnectionNumber(display);
 	assert(display);
+	xfd = ConnectionNumber(display);
 	screen = DefaultScreen(display);
 
 	window = XCreateWindow(display, DefaultRootWindow(display), 0, 0, 640, 480, 0, DefaultDepth(display, screen), InputOutput, CopyFromParent, 0, NULL);
