@@ -172,8 +172,11 @@ static int xquit(Display *d){
 }
 
 void backend_init(){
-	display = XOpenDisplay (NULL);
-	assert(display);
+	display = XOpenDisplay(NULL);
+	if(!display){
+		fprintf(stderr, "Can't open X display.\n");
+		exit(EXIT_FAILURE);
+	}
 	xfd = ConnectionNumber(display);
 	screen = DefaultScreen(display);
 
