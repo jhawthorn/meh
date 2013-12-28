@@ -32,7 +32,7 @@ test/test: test/test.o $(filter-out src/main.o src/xlib.o, $(OBJFILES))
 	$(CC) $(CFLAGS) -MMD -MP -MT "$*.d" -c -o $@ $<
 
 install:
-	install -Dm 755 meh $(BINDIR)/meh
+	install -Dm 755 meh $(DESTDIR)$(BINDIR)/meh
 
 # Clean
 clean:
