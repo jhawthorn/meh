@@ -10,6 +10,8 @@ CLEANFILES := $(CLEANFILES) $(DEPFILES) $(OBJFILES) test/test.o test/test.d test
 LIBS ?= -lX11 -lXext -ljpeg -lpng -lgif
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
+DATAROOTDIR = $(PREFIX)/share
+MANDIR = $(DATAROOTDIR)/man
 
 # User configuration
 CONFIG ?= ../config
@@ -32,7 +34,8 @@ test/test: test/test.o $(filter-out src/main.o src/xlib.o, $(OBJFILES))
 	$(CC) $(CFLAGS) -MMD -MP -MT "$*.d" -c -o $@ $<
 
 install:
-	install -Dm 755 meh $(BINDIR)
+	install -Dm 755 meh $(DESTDIR)$(BINDIR)/meh
+	install -D doc/meh.1 $(DESTDIR)$(MANDIR)/man1/meh.1
 
 # Clean
 clean:
