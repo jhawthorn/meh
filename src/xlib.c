@@ -184,8 +184,8 @@ void backend_init(){
 	backend_setaspect(1, 1);
 	gc = XCreateGC(display, window, 0, NULL);
 
-	XMapRaised(display, window);
 	XSelectInput(display, window, StructureNotifyMask | ExposureMask | KeyPressMask);
+	XMapRaised(display, window);
 	XFlush(display);
 	XSetIOErrorHandler(xquit);
 	XFlush(display);
@@ -226,6 +226,16 @@ void handlekeypress(XEvent *event){
 
 void handleevent(XEvent *event){
 	switch(event->type){
+		/* Might not get ConfigureNotify, for example if there's no window manager */
+		case MapNotify:
+			if (!width || !height)
+			{
+				XWindowAttributes attr;
+				XGetWindowAttributes(event->xmap.display, event->xmap.window, &attr);
+				width = attr.width;
+				height = attr.height;
+			}
+			break;	
 		case ConfigureNotify:
 			if(width != event->xconfigure.width || height != event->xconfigure.height){
 				width = event->xconfigure.width;
