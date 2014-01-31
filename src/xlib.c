@@ -184,8 +184,8 @@ void backend_init(){
 	backend_setaspect(1, 1);
 	gc = XCreateGC(display, window, 0, NULL);
 
-	XMapRaised(display, window);
 	XSelectInput(display, window, StructureNotifyMask | ExposureMask | KeyPressMask);
+	XMapRaised(display, window);
 	XFlush(display);
 	XSetIOErrorHandler(xquit);
 	XFlush(display);
