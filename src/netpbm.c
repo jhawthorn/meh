@@ -41,14 +41,14 @@ struct image *netpbm_open(FILE *f){
 	b->format = format;
 
 	skipspace(f);
-	fscanf(f, "%u", &b->img.bufwidth);
+	if(fscanf(f, "%u", &b->img.bufwidth) != 1) goto err;
 	skipspace(f);
-	fscanf(f, "%u", &b->img.bufheight);
+	if(fscanf(f, "%u", &b->img.bufheight) != 1) goto err;
 	if(format == '1' || format == '4'){
 		b->maxval = 1;
 	}else{
 		skipspace(f);
-		fscanf(f, "%u", &b->maxval);
+		if(fscanf(f, "%u", &b->maxval) != 1) goto err;
 	}
 
 	/* whitespace character */
@@ -58,12 +58,16 @@ struct image *netpbm_open(FILE *f){
 	b->img.fmt = &netpbm;
 
 	return (struct image *)b;
+	
+err:
+	free(b);
+	return NULL;		
 }
 
 static unsigned char readvali(struct netpbm_t *b){
 	skipspace(b->f);
 	int val;
-	fscanf(b->f, "%i", &val);
+	int unused = fscanf(b->f, "%i", &val);
 	return val * 255 / b->maxval;
 }
 
@@ -129,7 +133,7 @@ int netpbm_read(struct image *img){
 		}
 	}else if(b->format == '6'){
 		if(b->maxval == 255){
-			fread(img->buf, 1, left * 3, f);
+			int unused = fread(img->buf, 1, left * 3, f);
 		}else{
 			while(left--){
 				img->buf[a++] = readvalb(b);

@@ -30,14 +30,17 @@ struct image *imagemagick_open(FILE *f){
 		argv[0] = "convert";
 		argv[1] = "-depth";
 		argv[2] = "255";
-		asprintf(&argv[3], "fd:%i", origfd);
-		asprintf(&argv[4], "ppm:fd:%i", tmpfd[1]);
+		if((asprintf(&argv[3], "fd:%i", origfd) < 0) || (asprintf(&argv[4], "ppm:fd:%i", tmpfd[1]) < 0)){
+			fprintf(stderr, "Out of memory");
+			exit(EXIT_FAILURE);
+		}
 		argv[5] = NULL;
 
 #ifdef NDEBUG
 		/* STFU OMFG */
-		freopen("/dev/null", "w", stdout);
-		freopen("/dev/null", "w", stderr);
+		FILE *unused __attribute__((unused));
+		unused = freopen("/dev/null", "w", stdout);
+		unused = freopen("/dev/null", "w", stderr);
 #endif
 
 		execvp(argv[0], argv);
