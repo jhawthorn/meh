@@ -97,14 +97,14 @@ error:
 void gif_close(struct image *img){
 	struct gif_t *g = (struct gif_t *)img;
 #if defined(GIFLIB_MAJOR) && defined(GIFLIB_MINOR) && (GIFLIB_MAJOR == 5 && GIFLIB_MINOR >= 1)
-	int ret;
+	int ret, ErrorCode;
 #endif
 
 #if defined(GIFLIB_MAJOR) && defined(GIFLIB_MINOR) && (GIFLIB_MAJOR == 5 && GIFLIB_MINOR >= 1)
-	DGifCloseFile(g->gif,&ret);
+	ret = DGifCloseFile(g->gif, &ErrorCode);
 	if(ret != GIF_OK) {
 #if defined(GIFLIB_MAJOR) && GIFLIB_MAJOR >= 5
-		fprintf(stderr, "GIFLIB: %s\n", GifErrorString(ret));
+		fprintf(stderr, "GIFLIB: %s\n", GifErrorString(ErrorCode));
 #elif defined(GIFLIB_MAJOR) && defined(GIFLIB_MINOR) && ((GIFLIB_MAJOR == 4 && GIFLIB_MINOR >= 2) || GIFLIB_MAJOR > 4)
 		fprintf(stderr, "GIFLIB: %s\n", GifErrorString());
 #else
