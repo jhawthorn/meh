@@ -196,7 +196,7 @@ void handlekeypress(XEvent *event){
 	switch(key){
 		case XK_Escape:
 		case XK_q:
-			key_quit();
+			meh_quit();
 			break;
 		case XK_Return:
 			key_action();
@@ -225,8 +225,14 @@ void handlekeypress(XEvent *event){
 
 
 void handleevent(XEvent *event){
+	Atom closed = XInternAtom(display, "WM_DELETE_WINDOW", True);
+	XSetWMProtocols(display, window, &closed, 1);
+
 	switch(event->type){
 		/* Might not get ConfigureNotify, for example if there's no window manager */
+		case ClientMessage:
+			meh_quit();
+			break;
 		case MapNotify:
 			if (!width || !height)
 			{
@@ -235,7 +241,7 @@ void handleevent(XEvent *event){
 				width = attr.width;
 				height = attr.height;
 			}
-			break;	
+			break;
 		case ConfigureNotify:
 			if(width != event->xconfigure.width || height != event->xconfigure.height){
 				width = event->xconfigure.width;

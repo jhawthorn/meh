@@ -114,7 +114,7 @@ void key_prev(){
 		}
 	}
 }
-void key_quit(){
+void meh_quit(){
 	exit(EXIT_SUCCESS);
 }
 
