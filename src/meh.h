@@ -2,6 +2,7 @@
 #define MEH_H MEH_H
 
 #include <stdio.h>
+#include <sys/select.h> /* for fd_set */
 
 struct image;
 
