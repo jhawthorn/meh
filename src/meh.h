@@ -44,7 +44,7 @@ void backend_run();
 void key_reload();
 void key_next();
 void key_prev();
-void key_quit();
+void meh_quit();
 void key_action();
 
 /* callbacks from backend */
