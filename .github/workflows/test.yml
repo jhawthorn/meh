@@ -9,6 +9,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
+    - name: Install dependencies
+      run: sudo apt-get install libgif-dev
     - name: make
       run: make
     - name: make test
