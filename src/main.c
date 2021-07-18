@@ -118,6 +118,11 @@ void key_quit(){
 	exit(EXIT_SUCCESS);
 }
 
+void key_default(char *key){
+	printf("%s %s\n", key, images[imageidx]);
+	fflush(stdout);
+}
+
 void key_action(){
 	puts(images[imageidx]);
 	fflush(stdout);
