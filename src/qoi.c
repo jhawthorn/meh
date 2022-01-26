@@ -9,11 +9,11 @@
 /* #define DEBUG */
 
 struct qoi_header_t {
-	unsigned char magic[4]; // magic bytes "qoif"
-	uint32_t width; // image width in pixels (BE)
-	uint32_t height; // image height in pixels (BE)
-	uint8_t channels; // 3 = RGB, 4 = RGBA
-	uint8_t colorspace; // 0 = sRGB with linear alpha, 1 = all channels linear
+	unsigned char magic[4]; /* magic bytes "qoif" */
+	uint32_t width; /* image width in pixels (BE) */
+	uint32_t height; /* image height in pixels (BE) */
+	uint8_t channels; /* 3 = RGB, 4 = RGBA */
+	uint8_t colorspace; /* 0 = sRGB with linear alpha, 1 = all channels linear */
 };
 
 #define QOI_MAGIC_LEN 4
@@ -67,7 +67,7 @@ struct image *qoi_open(FILE *f){
 	if(!q) return NULL;
 	q->f = f;
 
-	// read header
+	/* read header */
 	if(fread(q->header.magic, 1, QOI_MAGIC_LEN, f) != QOI_MAGIC_LEN)
 		return NULL;
 	if(memcmp(q->header.magic, QOI_MAGIC, QOI_MAGIC_LEN) != 0)
