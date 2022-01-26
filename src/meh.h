@@ -72,6 +72,7 @@ extern struct imageformat libpng;
 extern struct imageformat bmp;
 extern struct imageformat netpbm;
 extern struct imageformat imagemagick;
+extern struct imageformat qoi;
 
 extern int width, height;
 extern struct image *curimg;
