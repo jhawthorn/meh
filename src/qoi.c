@@ -48,6 +48,12 @@ struct qoi_t{
 
 #define QOI_MASK_2    0xc0 /* 11000000 */
 
+#define QOI_CHANNELS_RGB 3 /* only 3 channels, red, green, blue */
+#define QOI_CHANNELS_RGBA 4 /* 3 RGB channels, one alpha channel */
+
+#define QOI_SRGB   0 /* sRGB, i.e. gamma scaled RGB channels and a linear alpha channel */
+#define QOI_LINEAR 1 /* all channels are linear */
+
 struct image *qoi_open(FILE *f){
 	struct qoi_t *q;
 	uint32_t buf;
@@ -120,6 +126,7 @@ int qoi_read(struct image *img){
 	uint8_t run = 0;
 	uint32_t ptr = 0;
 	int nof_index0 = 0;
+	struct qoi_rgba_t background;
 	struct qoi_rgba_t pixel;
 
 #ifdef DEBUG
@@ -127,6 +134,9 @@ int qoi_read(struct image *img){
 #endif
 
 	memset(q->index, 0, QOI_SIZE_OF_COLOR_INDEX*sizeof(struct qoi_rgba_t));
+	background.r = 255;
+	background.g = 255;
+	background.b = 255;
 	pixel.r = 0;
 	pixel.g = 0;
 	pixel.b = 0;
@@ -236,12 +246,15 @@ int qoi_read(struct image *img){
 		}
 
 		assert(ptr<3*img->bufwidth*img->bufheight);
-		img->buf[ptr++] = pixel.r;
-		img->buf[ptr++] = pixel.g;
-		img->buf[ptr++] = pixel.b;
-		// does channels == 3 mean we can/must ignore the alpha channel?
-		if(q->header.channels == 4){
-		// TODO: alpha channel
+		if(q->header.channels == QOI_CHANNELS_RGB){
+			img->buf[ptr++] = pixel.r;
+			img->buf[ptr++] = pixel.g;
+			img->buf[ptr++] = pixel.b;
+		} else if(q->header.channels == QOI_CHANNELS_RGBA){
+			float alpha = (float)pixel.a / 255;
+			img->buf[ptr++] = ( 1 - alpha ) * background.r + alpha * pixel.r;
+			img->buf[ptr++] = ( 1 - alpha ) * background.g + alpha * pixel.g;
+			img->buf[ptr++] = ( 1 - alpha ) * background.b + alpha * pixel.b;
 		}
 	}
 
