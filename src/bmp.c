@@ -79,6 +79,7 @@ struct image *bmp_open(FILE *f){
 
 	if(b->compression){
 		fprintf(stderr, "unsupported compression method %i\n", b->compression);
+		free(b);
 		return NULL;
 	}
 
