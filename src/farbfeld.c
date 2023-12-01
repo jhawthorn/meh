@@ -77,7 +77,6 @@ int farbfeld_read(struct image *img){
 	struct farbfeld_t *q = (struct farbfeld_t *)img;
 	uint16_t buf[4];
 	uint32_t ptr = 0;
-	struct farbfeld_rgba_t background;
 	struct farbfeld_rgba_t pixel;
 	uint32_t rows, cols;
 
@@ -85,9 +84,6 @@ int farbfeld_read(struct image *img){
 	printf("farbfeld_read start\n");
 #endif
 
-	background.r = 0;
-	background.g = 0;
-	background.b = 0;
 	rows = 0;
 	cols = 0;
 
